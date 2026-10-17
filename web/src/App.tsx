@@ -28,16 +28,20 @@ interface AuthState { password_set: boolean; authenticated: boolean; setup_compl
 function Shell() {
   const [auth, setAuth] = useState<AuthState | null>(null)
   const [version, setVersion] = useState('')
+  const [protectionOn, setProtectionOn] = useState<boolean | undefined>(undefined)
   const navigate = useNavigate()
 
   const refresh = useCallback(() => {
     api.get<AuthState>('/api/v1/auth/state').then(setAuth).catch(() => setAuth(null))
     api.get<{ version: string }>('/api/v1/health').then(h => setVersion(h.version)).catch(() => {})
+    api.get<{ protection_enabled: boolean }>('/api/v1/status').then(s => setProtectionOn(s.protection_enabled)).catch(() => {})
   }, [])
 
   useEffect(() => {
     setUnauthorizedHandler(() => setAuth(a => a ? { ...a, authenticated: false } : a))
     refresh()
+    const t = setInterval(refresh, 30000)
+    return () => clearInterval(t)
   }, [refresh])
 
   if (auth === null) return <div className="flex h-full items-center justify-center"><Loading /></div>
@@ -51,7 +55,7 @@ function Shell() {
 
   return (
     <div className="flex h-full">
-      <Sidebar version={version} />
+      <Sidebar version={version} protectionOn={protectionOn} />
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-7xl px-6 py-6">
           <ErrorBoundary>

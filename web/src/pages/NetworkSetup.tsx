@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Copy, CheckCircle2, XCircle, RefreshCw, FlaskConical } from 'lucide-react'
 import { api, fmtTime } from '../lib/api'
 import { NetInterface, NetworkInfo, Diagnostics } from '../lib/types'
-import { Badge, ErrorBox, Loading } from '../components/ui'
+import { Badge, ErrorBox, Loading, PageHeader, SectionLabel } from '../components/ui'
 
 export function NetworkSetup() {
   const [ifs, setIfs] = useState<NetInterface[] | null>(null)
@@ -37,7 +37,7 @@ export function NetworkSetup() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-lg font-semibold text-zinc-100">Network Setup</h1>
+      <PageHeader title="Network Setup" desc="How to point your network's DNS at Blacknet, step by step." />
       <ErrorBox error={err} />
 
       <section className="card p-5 space-y-3">
@@ -259,7 +259,7 @@ function DHCPPanel({ primaryIPv4, gateway }: { primaryIPv4: string; gateway: str
       {err && <ErrorBox error={err} />}
       {running && (
         <div>
-          <div className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500">Active leases</div>
+          <SectionLabel>Active leases</SectionLabel>
           {leases.length === 0
             ? <div className="text-xs text-zinc-600">No leases yet</div>
             : (

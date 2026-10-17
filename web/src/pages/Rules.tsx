@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Download, Upload, FlaskConical, Pencil, Trash2, Search, SearchCode, ListChecks, GitCompareArrows, Clock } from 'lucide-react'
 import { api, fmtTime } from '../lib/api'
 import { Rule, Client, PolicyGroup, InspectResult, BatchResult, RuleConflict } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader } from '../components/ui'
 import { ExplanationView } from './Policies'
 
 export function Rules() {
@@ -48,9 +48,8 @@ export function Rules() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-zinc-100">Custom Rules</h1>
-        <div className="flex gap-2">
+      <PageHeader title="Custom Rules" desc="Allow and block rules, scoped globally, per client, or per policy group.">
+        <div className="flex flex-wrap gap-2">
           <button className="btn-ghost" onClick={() => setInspectOpen(true)}><SearchCode className="h-3.5 w-3.5" /> Inspect</button>
           <button className="btn-ghost" onClick={() => setBatchOpen(true)}><ListChecks className="h-3.5 w-3.5" /> Batch test</button>
           <button className="btn-ghost" onClick={() => setTestOpen(true)}><FlaskConical className="h-3.5 w-3.5" /> Test</button>
@@ -59,11 +58,11 @@ export function Rules() {
           <button className="btn-ghost" onClick={() => window.open('/api/v1/rules/export', '_blank')}><Download className="h-3.5 w-3.5" /> Export</button>
           <button className="btn-primary" onClick={() => setEdit('new')}><Plus className="h-3.5 w-3.5" /> Add rule</button>
         </div>
-      </div>
+      </PageHeader>
 
       <div className="card flex items-center gap-2 p-3">
         <div className="relative">
-          <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-zinc-500" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
           <input className="input pl-8 w-64" placeholder="Search rules…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <span className="text-xs text-zinc-600">{filtered.length} of {items.length} rules</span>

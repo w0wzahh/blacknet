@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, RefreshCw, Trash2, History, Users, Sparkles, GitCompareArrows, AlertTriangle } from 'lucide-react'
 import { api, fmtNum, fmtTime } from '../lib/api'
 import { Blocklist, ListHistoryEntry, PolicyGroup } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader } from '../components/ui'
 
 interface Profile {
   id: string; name: string; description: string; risk: string
@@ -69,14 +69,13 @@ export function Blocklists() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-zinc-100">Blocklists</h1>
+      <PageHeader title="Blocklists" desc="Curated domain lists imported and refreshed on a schedule.">
         <div className="flex gap-2">
           <button className="btn-ghost" onClick={() => setProfilesOpen(true)}><Sparkles className="h-3.5 w-3.5" /> Profiles</button>
           <button className="btn-ghost" onClick={showRecs}><GitCompareArrows className="h-3.5 w-3.5" /> Insights</button>
           <button className="btn-primary" onClick={() => setAddOpen(true)}><Plus className="h-3.5 w-3.5" /> Add list</button>
         </div>
-      </div>
+      </PageHeader>
       <ErrorBox error={err} />
       {notice && <div className="rounded-md border border-emerald-800/60 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
       {items.length === 0 ? (
@@ -97,7 +96,7 @@ export function Blocklists() {
                   <td className="td text-xs text-zinc-500">{scopeLabel(b)}</td>
                   <td className="td"><Toggle on={b.enabled} onChange={() => toggle(b)} /></td>
                   <td className="td text-xs text-zinc-500 whitespace-nowrap">{b.last_refresh ? fmtTime(b.last_refresh) : 'never'}</td>
-                  <td className="td text-right">{fmtNum(b.rule_count)}</td>
+                  <td className="td text-right tabular-nums">{fmtNum(b.rule_count)}</td>
                   <td className="td max-w-[160px] truncate text-xs text-red-400" title={b.last_error}>{b.last_error || '—'}</td>
                   <td className="td">
                     <div className="flex justify-end gap-1">
@@ -216,10 +215,10 @@ function HistoryModal({ list, onClose }: { list: Blocklist; onClose: () => void 
                 <tr key={h.id}>
                   <td className="td text-xs text-zinc-500 whitespace-nowrap">{fmtTime(h.ts)}</td>
                   <td className="td"><Badge tone={h.status === 'ok' ? 'ok' : h.status === 'unchanged' ? 'muted' : 'bad'}>{h.status}</Badge></td>
-                  <td className="td text-right text-xs">{fmtNum(h.rule_count)}</td>
-                  <td className="td text-right text-xs">{fmtNum(h.bytes)}</td>
-                  <td className="td text-right text-xs">{h.malformed > 0 ? <span className="text-amber-400">{fmtNum(h.malformed)}</span> : '0'}</td>
-                  <td className="td text-right text-xs">{fmtNum(h.duplicates)}</td>
+                  <td className="td text-right tabular-nums text-xs">{fmtNum(h.rule_count)}</td>
+                  <td className="td text-right tabular-nums text-xs">{fmtNum(h.bytes)}</td>
+                  <td className="td text-right tabular-nums text-xs">{h.malformed > 0 ? <span className="text-amber-400">{fmtNum(h.malformed)}</span> : '0'}</td>
+                  <td className="td text-right tabular-nums text-xs">{fmtNum(h.duplicates)}</td>
                   <td className="td max-w-[180px] truncate text-xs text-red-400" title={h.error}>{h.error || '—'}</td>
                 </tr>
               ))}

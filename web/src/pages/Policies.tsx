@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, FlaskConical, Pencil, Trash2, Copy, Link2 } from 'lucide-react'
 import { api, fmtTime } from '../lib/api'
 import { PolicyGroup, Assignment, Client, Upstream, Explanation } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader } from '../components/ui'
 
 export function Policies() {
   const [groups, setGroups] = useState<PolicyGroup[] | null>(null)
@@ -41,14 +41,13 @@ export function Policies() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-zinc-100">Policy Groups</h1>
+      <PageHeader title="Policy Groups" desc="Apply different filtering rules, lists and upstreams to groups of devices.">
         <div className="flex gap-2">
           <button className="btn-ghost" onClick={() => setSimOpen(true)}><FlaskConical className="h-3.5 w-3.5" /> Simulate</button>
           <button className="btn-ghost" onClick={() => setAssignOpen(true)}><Link2 className="h-3.5 w-3.5" /> Add assignment</button>
           <button className="btn-primary" onClick={() => setEditGroup('new')}><Plus className="h-3.5 w-3.5" /> Add group</button>
         </div>
-      </div>
+      </PageHeader>
       <ErrorBox error={err} />
 
       {groups.length === 0 ? (

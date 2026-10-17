@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Pause, Play, Download, Search } from 'lucide-react'
 import { api, fmtTime, fmtTimeShort } from '../lib/api'
 import { QueryRow } from '../lib/types'
-import { Badge, ErrorBox } from '../components/ui'
+import { Badge, ErrorBox, PageHeader } from '../components/ui'
 
 const QTYPES = ['', 'A', 'AAAA', 'CNAME', 'MX', 'TXT', 'PTR', 'SRV', 'NS', 'HTTPS']
 const QTYPE_IDS: Record<string, number> = { A: 1, NS: 2, CNAME: 5, PTR: 12, MX: 15, TXT: 16, AAAA: 28, SRV: 33, HTTPS: 65 }
@@ -64,8 +64,7 @@ export function QueryLog() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-zinc-100">Query Log</h1>
+      <PageHeader title="Query Log" desc="Every DNS query the resolver answered — live tail included.">
         <div className="flex items-center gap-2">
           {dropped > 0 && <Badge tone="warn">{dropped} events dropped</Badge>}
           <button className="btn-ghost" onClick={() => setLive(v => !v)}>
@@ -73,11 +72,11 @@ export function QueryLog() {
           </button>
           <button className="btn-ghost" onClick={exportCSV}><Download className="h-3.5 w-3.5" /> CSV</button>
         </div>
-      </div>
+      </PageHeader>
 
       <div className="card flex flex-wrap items-center gap-2 p-3">
         <div className="relative">
-          <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-zinc-500" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
           <input className="input pl-8 w-56" placeholder="Search domain…" value={domain}
             onChange={e => setDomain(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && (setPage(1), load(1))} />
@@ -128,7 +127,7 @@ export function QueryLog() {
                 </td>
                 <td className="td max-w-[180px] truncate text-xs text-zinc-500" title={q.reason}>{q.reason}</td>
                 <td className="td text-xs text-zinc-500">{q.rcode_name || q.rcode}</td>
-                <td className="td text-right text-xs text-zinc-500">{q.latency_ms?.toFixed(1)}</td>
+                <td className="td text-right tabular-nums text-xs text-zinc-500">{q.latency_ms?.toFixed(1)}</td>
               </tr>
             ))}
           </tbody>

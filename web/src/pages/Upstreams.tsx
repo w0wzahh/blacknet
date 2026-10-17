@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Activity, Trash2, Pencil } from 'lucide-react'
 import { api } from '../lib/api'
 import { Upstream } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader } from '../components/ui'
 
 const PROTOCOLS = [
   { v: 'udp', label: 'DNS (UDP)', hint: 'host:53' },
@@ -53,15 +53,14 @@ export function Upstreams() {
   if (!items) return err ? <ErrorBox error={err} /> : <Loading />
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-zinc-100">Upstream DNS</h1>
+      <PageHeader title="Upstream DNS" desc="Resolvers Blacknet forwards allowed queries to — plain DNS, DoT, or DoH.">
         <div className="flex gap-2">
           <button className="btn-ghost" disabled={testAll} onClick={testAllUpstreams}>
             <Activity className="h-3.5 w-3.5" /> {testAll ? 'Testing…' : 'Test all'}
           </button>
           <button className="btn-primary" onClick={() => setEdit('new')}><Plus className="h-3.5 w-3.5" /> Add upstream</button>
         </div>
-      </div>
+      </PageHeader>
       <ErrorBox error={err} />
       {items.length === 0 ? (
         <EmptyState title="No upstream resolvers" hint="Add at least one upstream so allowed queries can resolve." />
@@ -80,8 +79,8 @@ export function Upstreams() {
                   <td className="td font-medium text-zinc-200">{u.name}</td>
                   <td className="td"><Badge tone="muted">{u.protocol.toUpperCase()}</Badge></td>
                   <td className="td font-mono text-xs max-w-[220px] truncate" title={u.address}>{u.address}</td>
-                  <td className="td text-right text-zinc-500">{u.priority}</td>
-                  <td className="td text-right text-zinc-500">{Math.round(u.timeout / 1e6)}ms</td>
+                  <td className="td text-right tabular-nums text-zinc-500">{u.priority}</td>
+                  <td className="td text-right tabular-nums text-zinc-500">{Math.round(u.timeout / 1e6)}ms</td>
                   <td className="td">
                     {u.stats?.healthy
                       ? <Badge tone="ok">healthy</Badge>
@@ -90,7 +89,7 @@ export function Upstreams() {
                         </Badge>}
                     {u.stats?.last_error && <div className="mt-0.5 max-w-[160px] truncate text-xs text-red-500" title={u.stats.last_error}>{u.stats.last_error}</div>}
                   </td>
-                  <td className="td text-right text-xs text-zinc-500">{u.stats?.last_rtt_ms ? u.stats.last_rtt_ms.toFixed(0) + 'ms' : '—'}</td>
+                  <td className="td text-right tabular-nums text-xs text-zinc-500">{u.stats?.last_rtt_ms ? u.stats.last_rtt_ms.toFixed(0) + 'ms' : '—'}</td>
                   <td className="td"><Toggle on={u.enabled} onChange={() => toggle(u)} /></td>
                   <td className="td">
                     <div className="flex justify-end gap-1">

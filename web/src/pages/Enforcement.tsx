@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Play, RotateCcw, ShieldCheck, AlertTriangle, Eye } from 'lucide-react'
 import { api, fmtTime } from '../lib/api'
 import { Integration, EnforcementPlan, EnforcementOp } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, PageHeader } from '../components/ui'
 
 export function Enforcement() {
   const [integrations, setIntegrations] = useState<Integration[] | null>(null)
@@ -23,13 +23,7 @@ export function Enforcement() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-lg font-semibold text-zinc-100">Router Enforcement</h1>
-        <p className="mt-1 text-xs text-zinc-500">
-          Make the router send all DNS through Blacknet — otherwise devices with hardcoded DNS bypass filtering.
-          Every change shows a preview first and records an operation you can roll back.
-        </p>
-      </div>
+      <PageHeader title="Router Enforcement" desc="Make the router send all DNS through Blacknet — every change previews first and can be rolled back." />
       <ErrorBox error={err} />
 
       <div className="grid gap-3 sm:grid-cols-2">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { RefreshCw, Download, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
 import { api, fmtNum, fmtTime } from '../lib/api'
-import { Badge, ErrorBox, Loading } from '../components/ui'
+import { Badge, ErrorBox, Loading, PageHeader } from '../components/ui'
 
 interface HealthResp {
   ok: boolean
@@ -67,18 +67,14 @@ export function Health() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-zinc-100">System Health</h1>
-          <div className="text-xs text-zinc-500">v{h.version} · checked {at}</div>
-        </div>
+      <PageHeader title="System Health" desc={`v${h.version} · checked ${at}`}>
         <div className="flex gap-2">
           <button className="btn-ghost" onClick={load}><RefreshCw className="h-3.5 w-3.5" /> Refresh</button>
           <button className="btn-ghost" onClick={() => window.open('/api/v1/diagnostics/export', '_blank')}>
             <Download className="h-3.5 w-3.5" /> Diagnostic bundle
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       <div className={`card flex items-center gap-3 p-4 ${h.ok ? 'border-emerald-800/50' : 'border-red-800/50'}`}>
         {h.ok ? <CheckCircle2 className="h-5 w-5 text-emerald-400" /> : <XCircle className="h-5 w-5 text-red-400" />}
@@ -96,19 +92,19 @@ export function Health() {
 
       {prot && (
         <>
-          <h2 className="pt-2 text-sm font-semibold text-zinc-200">Network protection posture</h2>
+          <h2 className="pt-2 text-sm font-semibold tracking-tight text-zinc-100">Network protection posture</h2>
           <div className="card space-y-3 p-4">
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
-                <div className="text-xs uppercase tracking-wide text-zinc-500">Listening</div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-zinc-500">Listening</div>
                 <div className="mt-1 font-mono text-xs text-zinc-300">{prot.configured.dns_listen.join(', ')}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-zinc-500">Known clients</div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-zinc-500">Known clients</div>
                 <div className="mt-1 text-sm text-zinc-200">{fmtNum(prot.observed.known_clients)}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-wide text-zinc-500">Unmanaged devices seen</div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-zinc-500">Unmanaged devices seen</div>
                 <div className="mt-1 text-sm text-zinc-200">
                   {prot.observed.unmanaged_devices > 0
                     ? <Badge tone="warn">{prot.observed.unmanaged_devices}</Badge>
@@ -117,7 +113,7 @@ export function Health() {
               </div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wide text-zinc-500">Router enforcement</div>
+              <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-zinc-500">Router enforcement</div>
               <div className="mt-1 text-sm text-zinc-200">
                 {prot.enforced
                   ? <Badge tone="ok">{prot.enforced.integration} · {prot.enforced.status} · {fmtTime(prot.enforced.ts)}</Badge>

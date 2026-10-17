@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from 'recharts'
 import { api, fmtNum, fmtTime, fmtTimeShort } from '../lib/api'
 import { Bucket, TopItem, Summary, Status } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, chartTooltip, chartLegend } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, PageHeader, SectionLabel, StatCard, RankList, chartTooltip, chartLegend } from '../components/ui'
 import { SearchCode } from 'lucide-react'
 
 const WINDOWS = [
@@ -52,45 +52,55 @@ export function Analytics() {
   useEffect(() => { load() }, [win])
 
   if (!summary || !status) return <Loading />
-  const pie = [
-    { name: 'Allowed', value: summary.allowed_queries },
-    { name: 'Blocked', value: summary.blocked_queries },
-    { name: 'Cached', value: Math.min(summary.cached_queries, summary.allowed_queries) },
+  // Cached replies only happen for allowed queries, so the three slices must
+  // be disjoint: forwarded = allowed - cached.
+  const cached = Math.min(summary.cached_queries, summary.allowed_queries)
+  const forwarded = summary.allowed_queries - cached
+  const slices = [
+    { name: 'Forwarded', value: forwarded, color: '#34d399' },
+    { name: 'Cached', value: cached, color: '#60a5fa' },
+    { name: 'Blocked', value: summary.blocked_queries, color: '#8b5cf6' },
   ]
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-zinc-100">Analytics</h1>
-        <div className="flex items-center gap-2">
-          <button className="btn-ghost" onClick={() => setInvestigate(true)}>
-            <SearchCode className="h-3.5 w-3.5" /> Investigate domain
-          </button>
-          <div className="flex gap-1">
-            {WINDOWS.map(w => (
-              <button key={w.v} onClick={() => setWin(w.v)}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium ${win === w.v ? 'bg-violet-600 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}>
-                {w.label}
-              </button>
-            ))}
-          </div>
+      <PageHeader title="Analytics" desc="Traffic, decisions and latency for the selected window.">
+        <button className="btn-ghost" onClick={() => setInvestigate(true)}>
+          <SearchCode className="h-3.5 w-3.5" /> Investigate domain
+        </button>
+        <div className="seg">
+          {WINDOWS.map(w => (
+            <button key={w.v} onClick={() => setWin(w.v)}
+              className={`seg-item ${win === w.v ? 'seg-item-active' : ''}`}>
+              {w.label}
+            </button>
+          ))}
         </div>
-      </div>
+      </PageHeader>
       <ErrorBox error={err} />
 
       {summary.total_queries === 0 ? (
         <EmptyState title="No data in this window" hint="Analytics are computed from real logged queries. Generate some DNS traffic first." />
       ) : (
         <>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+            <StatCard label="Total queries" value={fmtNum(summary.total_queries)} sub={`last ${WINDOWS.find(w => w.v === win)?.label}`} />
+            <StatCard label="Blocked" value={fmtNum(summary.blocked_queries)} accent sub={`${summary.block_pct.toFixed(1)}% of traffic`} />
+            <StatCard label="Cached" value={fmtNum(cached)} sub={`${status.cache_hit_rate.toFixed(1)}% hit rate`} />
+            <StatCard label="Unique domains" value={fmtNum(summary.unique_domains)} />
+            <StatCard label="Active clients" value={fmtNum(summary.active_clients)} />
+            <StatCard label="Avg latency" value={`${summary.avg_latency_ms.toFixed(1)}ms`} />
+          </div>
+
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="card p-4 lg:col-span-2">
-              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Queries over time</div>
+              <SectionLabel>Queries over time</SectionLabel>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={series} margin={{ top: 4, right: 4, bottom: 0, left: -18 }}>
+                  <AreaChart data={series} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                     <CartesianGrid stroke="#27272a" vertical={false} />
                     <XAxis dataKey="ts" tickFormatter={t => fmtTimeShort(t)} tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} minTickGap={40} />
-                    <YAxis tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <YAxis width={30} tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} allowDecimals={false} />
                     <Tooltip {...chartTooltip} labelFormatter={l => fmtTime(l as string)} />
                     <Legend wrapperStyle={chartLegend} />
                     <Area type="monotone" dataKey="allowed" stackId="1" stroke="#34d399" fill="#34d399" fillOpacity={0.25} name="Allowed" />
@@ -100,19 +110,35 @@ export function Analytics() {
               </div>
             </div>
             <div className="card p-4">
-              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Decision share</div>
-              <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={pie} dataKey="value" innerRadius={52} outerRadius={78} paddingAngle={2} strokeWidth={0}>
-                      <Cell fill="#34d399" fillOpacity={0.7} />
-                      <Cell fill="#8b5cf6" />
-                      <Cell fill="#71717a" fillOpacity={0.6} />
-                    </Pie>
-                    <Tooltip {...chartTooltip} />
-                    <Legend wrapperStyle={chartLegend} formatter={(v: string) => <span style={{ color: '#a1a1a5' }}>{v}</span>} />
-                  </PieChart>
-                </ResponsiveContainer>
+              <SectionLabel>Decision share</SectionLabel>
+              <div className="flex h-56 items-center gap-4">
+                <div className="relative h-36 w-36 shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={slices} dataKey="value" nameKey="name" innerRadius="68%" outerRadius="95%"
+                        paddingAngle={2} strokeWidth={0} startAngle={90} endAngle={-270}>
+                        {slices.map(s => <Cell key={s.name} fill={s.color} />)}
+                      </Pie>
+                      <Tooltip {...chartTooltip} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-xl font-semibold tracking-tight text-zinc-50">{summary.block_pct.toFixed(1)}%</span>
+                    <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-zinc-500">blocked</span>
+                  </div>
+                </div>
+                <div className="min-w-0 flex-1 space-y-2">
+                  {slices.map(s => (
+                    <div key={s.name} className="flex items-center gap-2 text-xs">
+                      <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: s.color }} />
+                      <span className="min-w-0 flex-1 truncate text-zinc-400">{s.name}</span>
+                      <span className="font-mono tabular-nums text-zinc-300">{fmtNum(s.value)}</span>
+                      <span className="w-11 shrink-0 text-right font-mono tabular-nums text-zinc-500">
+                        {summary.total_queries > 0 ? (s.value / summary.total_queries * 100).toFixed(1) : '0.0'}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -123,46 +149,45 @@ export function Analytics() {
             <Ranked title="Most active clients" items={topClients} barColor="#60a5fa" showAlias />
           </div>
 
-          <div className="card p-4 grid grid-cols-2 gap-3 sm:grid-cols-4 text-sm">
-            <div><div className="text-xs text-zinc-500">Unique domains</div><div className="text-lg font-semibold">{fmtNum(summary.unique_domains)}</div></div>
-            <div><div className="text-xs text-zinc-500">Active clients</div><div className="text-lg font-semibold">{summary.active_clients}</div></div>
-            <div><div className="text-xs text-zinc-500">Avg latency</div><div className="text-lg font-semibold">{summary.avg_latency_ms.toFixed(1)}ms</div></div>
-            <div><div className="text-xs text-zinc-500">Cache hit rate</div><div className="text-lg font-semibold">{status.cache_hit_rate.toFixed(1)}%</div></div>
-          </div>
-
           <div className="grid gap-4 lg:grid-cols-3">
             {latency && (
               <div className="card p-4">
-                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Latency</div>
-                <div className="grid grid-cols-2 gap-y-2 text-sm">
-                  <div className="text-xs text-zinc-500">p50</div><div className="text-right font-mono">{latency.p50_ms.toFixed(1)}ms</div>
-                  <div className="text-xs text-zinc-500">p95</div><div className="text-right font-mono">{latency.p95_ms.toFixed(1)}ms</div>
-                  <div className="text-xs text-zinc-500">upstream avg</div><div className="text-right font-mono">{latency.avg_upstream_ms.toFixed(1)}ms</div>
-                  <div className="text-xs text-zinc-500">samples</div><div className="text-right font-mono">{fmtNum(latency.count)}</div>
+                <SectionLabel>Latency</SectionLabel>
+                <div className="space-y-1.5">
+                  {[['p50', latency.p50_ms], ['p95', latency.p95_ms], ['upstream avg', latency.avg_upstream_ms]].map(([k, v]) => (
+                    <div key={k} className="flex items-baseline justify-between text-xs">
+                      <span className="text-zinc-500">{k}</span>
+                      <span className="font-mono tabular-nums text-zinc-300">{(v as number).toFixed(1)}ms</span>
+                    </div>
+                  ))}
+                  <div className="flex items-baseline justify-between border-t border-white/[0.06] pt-1.5 text-xs">
+                    <span className="text-zinc-500">samples</span>
+                    <span className="font-mono tabular-nums text-zinc-500">{fmtNum(latency.count)}</span>
+                  </div>
                 </div>
               </div>
             )}
             <div className="card p-4">
-              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Response codes</div>
+              <SectionLabel>Response codes</SectionLabel>
               {errors.length === 0 ? <div className="py-6 text-center text-xs text-zinc-600">No errors in window</div> : (
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   {errors.map(e => (
-                    <div key={e.rcode} className="flex justify-between text-xs">
+                    <div key={e.rcode} className="flex items-baseline justify-between gap-3 text-xs">
                       <span className={e.rcode === 0 ? 'text-zinc-400' : 'text-amber-300'}>{e.name || `rcode ${e.rcode}`}</span>
-                      <span className="font-mono text-zinc-400">{fmtNum(e.total)}</span>
+                      <span className="font-mono tabular-nums text-zinc-400">{fmtNum(e.total)}</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
             <div className="card p-4">
-              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Per policy group</div>
+              <SectionLabel>Per policy group</SectionLabel>
               {groupStats.length === 0 ? <div className="py-6 text-center text-xs text-zinc-600">No groups configured</div> : (
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   {groupStats.map(g => (
-                    <div key={g.group_id} className="flex justify-between text-xs">
-                      <span className="text-zinc-300">{g.name || 'default'}</span>
-                      <span className="font-mono text-zinc-400">{fmtNum(g.total)} · {fmtNum(g.blocked)} blocked · {g.clients} clients</span>
+                    <div key={g.group_id} className="flex items-baseline justify-between gap-3 text-xs">
+                      <span className="min-w-0 truncate text-zinc-300">{g.name || 'default'}</span>
+                      <span className="shrink-0 font-mono tabular-nums text-zinc-400">{fmtNum(g.total)} · {fmtNum(g.blocked)} blocked · {g.clients} clients</span>
                     </div>
                   ))}
                 </div>
@@ -268,23 +293,10 @@ function InvestigateModal({ onClose }: { onClose: () => void }) {
 }
 
 function Ranked({ title, items, barColor, showAlias }: { title: string; items: TopItem[]; barColor: string; showAlias?: boolean }) {
-  const data = items.map(i => ({ name: showAlias && i.alias ? i.alias : i.value, total: i.total }))
   return (
     <div className="card p-4">
-      <div className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">{title}</div>
-      {items.length === 0 ? <div className="py-8 text-center text-xs text-zinc-600">No data</div> : (
-        <div className="h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 8 }}>
-              <XAxis type="number" hide />
-              <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10, fill: '#a1a1aa' }} tickLine={false} axisLine={false}
-                tickFormatter={(v: string) => v.length > 18 ? v.slice(0, 17) + '…' : v} />
-              <Tooltip {...chartTooltip} />
-              <Bar dataKey="total" fill={barColor} fillOpacity={0.75} radius={[0, 3, 3, 0]} barSize={10} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      <SectionLabel>{title}</SectionLabel>
+      <RankList items={items} barColor={barColor} showAlias={showAlias} empty="No data" />
     </div>
   )
 }

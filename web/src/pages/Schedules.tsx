@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2, Eye } from 'lucide-react'
 import { api, fmtTime } from '../lib/api'
 import { Schedule, SchedulePreview, PolicyGroup, Client, Blocklist } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader } from '../components/ui'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -56,10 +56,9 @@ export function Schedules() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-zinc-100">Schedules</h1>
+      <PageHeader title="Schedules" desc="Time-windowed protection — pause filtering, force it on, or add lists by schedule.">
         <button className="btn-primary" onClick={() => setEdit('new')}><Plus className="h-3.5 w-3.5" /> Add schedule</button>
-      </div>
+      </PageHeader>
       <ErrorBox error={err} />
       {items.length === 0 ? (
         <EmptyState title="No schedules"

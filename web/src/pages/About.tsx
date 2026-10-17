@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { Status } from '../lib/types'
-import { Loading } from '../components/ui'
+import { Loading, PageHeader } from '../components/ui'
 
 export function About() {
   const [st, setSt] = useState<Status | null>(null)
@@ -9,7 +9,7 @@ export function About() {
   if (!st) return <Loading />
   return (
     <div className="max-w-2xl space-y-5">
-      <h1 className="text-lg font-semibold text-zinc-100">About</h1>
+      <PageHeader title="About" desc="Version, deployment info and useful links." />
       <div className="card space-y-3 p-5">
         <div className="flex items-baseline gap-3">
           <span className="text-xl font-semibold text-zinc-100">Blacknet</span>

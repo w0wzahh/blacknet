@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Download, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api, fmtTime } from '../lib/api'
 import { AuditEntry } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Field } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Field, PageHeader } from '../components/ui'
 
 interface AuditResp { items: AuditEntry[]; total: number; page: number; per_page: number }
 
@@ -27,12 +27,11 @@ export function Audit() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-zinc-100">Audit Log</h1>
+      <PageHeader title="Audit Log" desc="Every change made through the dashboard or API, recorded.">
         <button className="btn-ghost" onClick={() => window.open('/api/v1/audit/export', '_blank')}>
           <Download className="h-3.5 w-3.5" /> Export CSV
         </button>
-      </div>
+      </PageHeader>
       <ErrorBox error={err} />
 
       <div className="card flex flex-wrap items-end gap-3 p-3">

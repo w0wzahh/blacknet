@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Radar, Check, Info } from 'lucide-react'
 import { api, fmtTime } from '../lib/api'
 import { DiscoveryEvent } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, PageHeader } from '../components/ui'
 
 interface EventsResp {
   items: DiscoveryEvent[]
@@ -37,12 +37,11 @@ export function Devices() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-zinc-100">Device Discovery</h1>
+      <PageHeader title="Device Discovery" desc="Passive inventory — new devices on the LAN appear here as they're seen.">
         <button className="btn-primary" disabled={scanning || !data.enabled} onClick={scan}>
           <Radar className="h-3.5 w-3.5" /> {scanning ? 'Scanning…' : 'Scan now'}
         </button>
-      </div>
+      </PageHeader>
       <ErrorBox error={err} />
 
       {!data.enabled ? (
@@ -83,7 +82,7 @@ export function Devices() {
                   <td className="td max-w-[260px] truncate text-xs text-zinc-500">{e.detail || '—'}</td>
                   <td className="td text-xs text-zinc-500 whitespace-nowrap">{fmtTime(e.first_seen)}</td>
                   <td className="td text-xs text-zinc-500 whitespace-nowrap">{fmtTime(e.last_seen)}</td>
-                  <td className="td text-right text-xs text-zinc-400">{e.count}</td>
+                  <td className="td text-right tabular-nums text-xs text-zinc-400">{e.count}</td>
                   <td className="td text-right">
                     {!e.notified && (
                       <button className="btn-ghost px-2!" title="Acknowledge" onClick={() => ack(e)}>

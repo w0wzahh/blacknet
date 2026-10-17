@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Pencil, RotateCcw, Trash2, Plus, Fingerprint } from 'lucide-react'
 import { api, fmtNum, fmtTime, fmtTimeShort } from '../lib/api'
 import { Client, QueryRow, PolicyGroup, Identity } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, PageHeader } from '../components/ui'
 
 const CLASSIFICATIONS = ['', 'computer', 'phone', 'tablet', 'tv', 'iot', 'server', 'router', 'other']
 
@@ -34,10 +34,9 @@ export function Clients() {
   if (!items) return err ? <ErrorBox error={err} /> : <Loading />
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-zinc-100">Clients</h1>
+      <PageHeader title="Clients" desc="Devices that query Blacknet — assign aliases, groups and classifications.">
         <button className="btn-primary" onClick={() => setAddOpen(true)}><Plus className="h-3.5 w-3.5" /> Add client</button>
-      </div>
+      </PageHeader>
       <ErrorBox error={err} />
       {items.length === 0 ? (
         <EmptyState title="No clients seen yet" hint="Devices appear here once they query Blacknet. Assign aliases to recognize them." />
@@ -62,9 +61,9 @@ export function Clients() {
                   <td className="td text-xs text-zinc-500">{c.classification || '—'}</td>
                   <td className="td text-xs text-zinc-500">{fmtTime(c.first_seen)}</td>
                   <td className="td text-xs text-zinc-500">{fmtTime(c.last_seen)}</td>
-                  <td className="td text-right">{fmtNum(c.total_queries)}</td>
-                  <td className="td text-right">{fmtNum(c.blocked_queries)}</td>
-                  <td className="td text-right">{c.block_pct.toFixed(1)}%</td>
+                  <td className="td text-right tabular-nums">{fmtNum(c.total_queries)}</td>
+                  <td className="td text-right tabular-nums">{fmtNum(c.blocked_queries)}</td>
+                  <td className="td text-right tabular-nums">{c.block_pct.toFixed(1)}%</td>
                   <td className="td">
                     <div className="flex justify-end gap-1">
                       <button className="btn-ghost px-2!" title="Identities" onClick={() => setIdentOpen(c)}>
@@ -205,7 +204,7 @@ function IdentitiesModal({ client, onClose }: { client: Client; onClose: () => v
                 <tr key={i.id}>
                   <td className="td"><Badge tone="accent">{i.kind}</Badge></td>
                   <td className="td font-mono text-xs">{i.value}</td>
-                  <td className="td text-right"><button className="btn-subtle-danger px-2!" onClick={() => unbind(i)}><Trash2 className="h-3.5 w-3.5" /></button></td>
+                  <td className="td text-right tabular-nums"><button className="btn-subtle-danger px-2!" onClick={() => unbind(i)}><Trash2 className="h-3.5 w-3.5" /></button></td>
                 </tr>
               ))}
             </tbody>

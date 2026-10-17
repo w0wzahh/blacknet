@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Download, Upload, RefreshCw } from 'lucide-react'
 import { api, ApiError } from '../lib/api'
 import { Settings, Status } from '../lib/types'
-import { ErrorBox, Field, Loading, Toggle } from '../components/ui'
+import { Badge, ErrorBox, Field, Loading, PageHeader, Toggle } from '../components/ui'
 
 export function SettingsPage({ onChanged }: { onChanged?: () => void }) {
   const [s, setS] = useState<Settings | null>(null)
@@ -68,10 +68,9 @@ export function SettingsPage({ onChanged }: { onChanged?: () => void }) {
 
   return (
     <div className="space-y-5 max-w-2xl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-zinc-100">Settings</h1>
-        {saved && <span className="text-xs text-emerald-400">saved</span>}
-      </div>
+      <PageHeader title="Settings" desc="Runtime behavior — protection, DNS security, retention, backup.">
+        {saved && <Badge tone="ok">saved</Badge>}
+      </PageHeader>
       <ErrorBox error={err} />
 
       <section className="card space-y-4 p-5">
