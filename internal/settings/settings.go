@@ -23,6 +23,12 @@ type Settings struct {
 	HealthProbeDomain      string `json:"health_probe_domain"`
 	HealthProbeIntervalSec int    `json:"health_probe_interval_seconds"`
 	SetupCompleted         bool   `json:"setup_completed"`
+	// V2
+	QueryLoggingEnabled  bool `json:"query_logging_enabled"`
+	DiscoveryEnabled     bool `json:"discovery_enabled"`
+	DiscoveryIntervalSec int  `json:"discovery_interval_seconds"`
+	DNSSECUpstream       bool `json:"dnssec_upstream"` // pass DO, record AD (upstream validates)
+	AuditRetentionDays   int  `json:"audit_retention_days"`
 }
 
 // Default returns safe defaults.
@@ -40,6 +46,11 @@ func Default() Settings {
 		AllowPrivateLists:      false,
 		HealthProbeDomain:      "example.com",
 		HealthProbeIntervalSec: 60,
+		QueryLoggingEnabled:    true,
+		DiscoveryEnabled:       true,
+		DiscoveryIntervalSec:   300,
+		DNSSECUpstream:         false,
+		AuditRetentionDays:     180,
 	}
 }
 
@@ -68,6 +79,11 @@ func Load(ctx context.Context, db *database.DB) (Settings, error) {
 	decode("health_probe_domain", &s.HealthProbeDomain)
 	decode("health_probe_interval_seconds", &s.HealthProbeIntervalSec)
 	decode("setup_completed", &s.SetupCompleted)
+	decode("query_logging_enabled", &s.QueryLoggingEnabled)
+	decode("discovery_enabled", &s.DiscoveryEnabled)
+	decode("discovery_interval_seconds", &s.DiscoveryIntervalSec)
+	decode("dnssec_upstream", &s.DNSSECUpstream)
+	decode("audit_retention_days", &s.AuditRetentionDays)
 	return s, nil
 }
 
@@ -102,6 +118,12 @@ func Validate(s *Settings) map[string]string {
 	}
 	if s.HealthProbeIntervalSec < 0 || s.HealthProbeIntervalSec > 86400 {
 		errs["health_probe_interval_seconds"] = "must be between 0 and 86400"
+	}
+	if s.DiscoveryIntervalSec < 60 || s.DiscoveryIntervalSec > 86400 {
+		errs["discovery_interval_seconds"] = "must be between 60 and 86400"
+	}
+	if s.AuditRetentionDays < 7 || s.AuditRetentionDays > 3650 {
+		errs["audit_retention_days"] = "must be between 7 and 3650"
 	}
 	return errs
 }

@@ -292,6 +292,290 @@ paths:
     get:
       summary: Rule-engine + service diagnostics (?domain=)
       responses: { '200': { description: diagnostics } }
+  /diagnostics/export:
+    get:
+      summary: Download a diagnostic bundle (JSON)
+      responses: { '200': { description: diagnostic bundle } }
+  /system/health:
+    get:
+      summary: Health snapshot plus recent history
+      responses: { '200': { description: health report } }
+  /network/protection:
+    get:
+      summary: Honest network-protection state (configured vs observed vs enforced)
+      responses: { '200': { description: protection report } }
+  /policies/groups:
+    get:
+      summary: List policy groups
+      responses: { '200': { description: groups } }
+    post:
+      summary: Create a policy group (enabled by default)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                enabled: { type: boolean, default: true }
+                upstream_id: { type: integer }
+      responses:
+        '201': { description: created group }
+        '400': { description: validation failed }
+        '409': { description: duplicate name }
+  /policies/groups/{id}:
+    patch:
+      summary: Update a policy group
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: updated group } }
+    delete:
+      summary: Delete a policy group
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: deleted } }
+  /policies/groups/{id}/duplicate:
+    post:
+      summary: Duplicate a group including its assignments and list restrictions
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '201': { description: new group } }
+  /policies/assignments:
+    get:
+      summary: List policy assignments
+      responses: { '200': { description: assignments } }
+    post:
+      summary: Assign a client/IP/CIDR to a group
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, value, group_id]
+              properties:
+                kind: { type: string, enum: [client, ip, cidr] }
+                value: { type: string, description: client id, IP, or CIDR }
+                group_id: { type: integer }
+      responses:
+        '201': { description: created assignment }
+        '400': { description: validation failed }
+  /policies/assignments/{id}:
+    delete:
+      summary: Remove a policy assignment
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: deleted } }
+  /policies/simulate:
+    post:
+      summary: Dry-run a DNS decision for a domain from a client/IP/group
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain]
+              properties:
+                domain: { type: string }
+                client_id: { type: integer }
+                client_ip: { type: string }
+                group_id: { type: integer }
+      responses: { '200': { description: decision + explanation trace } }
+  /rules/inspect:
+    get:
+      summary: Explain the decision for a domain+subject with a full trace
+      parameters:
+        - { name: domain, in: query, required: true, schema: { type: string } }
+        - { name: client_id, in: query, schema: { type: integer } }
+        - { name: group_id, in: query, schema: { type: integer } }
+      responses: { '200': { description: explanation } }
+  /rules/batch-test:
+    post:
+      summary: Evaluate many domains at once and return decisions
+      responses: { '200': { description: per-domain results } }
+  /rules/conflicts:
+    get:
+      summary: Detect shadowed and contradictory rules
+      responses: { '200': { description: conflict report } }
+  /schedules:
+    get:
+      summary: List protection schedules
+      responses: { '200': { description: schedules } }
+    post:
+      summary: Create a schedule (enabled by default)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, effect, target_kind, target_id, days_mask, start_min, end_min]
+              properties:
+                name: { type: string }
+                effect: { type: string, enum: [protection_off, protection_on, extra_lists] }
+                target_kind: { type: string, enum: [group, client] }
+                target_id: { type: integer }
+                days_mask: { type: integer, description: 'bit i = weekday i, Sunday=0' }
+                start_min: { type: integer, description: 'minutes after midnight 0-1439' }
+                end_min: { type: integer, description: 'may be < start_min (crosses midnight)' }
+                tz: { type: string, description: 'IANA zone, defaults to UTC' }
+                list_ids: { type: array, items: { type: integer }, description: 'extra_lists only' }
+                enabled: { type: boolean, default: true }
+      responses: { '201': { description: created schedule } }
+  /schedules/{id}:
+    patch:
+      summary: Update a schedule
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: updated schedule } }
+    delete:
+      summary: Delete a schedule
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: deleted } }
+  /schedules/{id}/preview:
+    get:
+      summary: Next activation windows for a schedule
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: upcoming windows } }
+  /local-dns:
+    get:
+      summary: List local DNS records
+      responses: { '200': { description: records } }
+    post:
+      summary: Create a local DNS record (enabled by default); returns warnings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, type, value]
+              properties:
+                name: { type: string }
+                type: { type: string, enum: [A, AAAA, CNAME, TXT, PTR] }
+                value: { type: string }
+                ttl: { type: integer }
+                enabled: { type: boolean, default: true }
+                comment: { type: string }
+      responses: { '201': { description: record + conflict warnings } }
+  /local-dns/{id}:
+    patch:
+      summary: Update a local DNS record
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: updated record } }
+    delete:
+      summary: Delete a local DNS record
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: deleted } }
+  /local-dns/test:
+    post:
+      summary: Resolve a name against the local DNS table without a live query
+      responses: { '200': { description: resolution result } }
+  /discovery/events:
+    get:
+      summary: Recent discovery events (new devices, identity changes)
+      responses: { '200': { description: events } }
+  /discovery/events/{id}/ack:
+    post:
+      summary: Acknowledge a discovery event
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: acknowledged } }
+  /discovery/scan:
+    post:
+      summary: Run an on-demand passive discovery scan
+      responses: { '200': { description: scan result } }
+  /clients/{id}/identities:
+    get:
+      summary: Identity bindings for a client (MAC, hostname, DHCP)
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: identities } }
+    post:
+      summary: Bind an identity to a client
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '201': { description: created identity } }
+  /clients/{id}/identities/{iid}:
+    delete:
+      summary: Remove an identity binding
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { name: iid, in: path, required: true, schema: { type: integer } }
+      responses: { '200': { description: deleted } }
+  /clients/{id}/stats:
+    get:
+      summary: Per-client query stats and top domains
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: client stats } }
+  /blocklists/{id}/history:
+    get:
+      summary: Refresh/update history for a blocklist
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: history entries } }
+  /blocklists/{id}/groups:
+    get:
+      summary: Groups this blocklist is restricted to
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: group ids } }
+    put:
+      summary: Set group restrictions (empty = applies to everyone)
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: updated } }
+  /blocklists/profiles:
+    get:
+      summary: Bundled blocklist profiles
+      responses: { '200': { description: profiles } }
+  /blocklists/profile:
+    post:
+      summary: Apply a blocklist profile to a group or globally
+      responses: { '200': { description: applied } }
+  /blocklists/recommendations:
+    get:
+      summary: Quality analysis, overlap and recommendations
+      responses: { '200': { description: recommendations } }
+  /stats/latency:
+    get:
+      summary: Upstream latency percentiles
+      responses: { '200': { description: latency stats } }
+  /stats/errors:
+    get:
+      summary: DNS error breakdown (SERVFAIL, timeouts, refusals)
+      responses: { '200': { description: error counts } }
+  /stats/groups:
+    get:
+      summary: Per-policy-group query stats
+      responses: { '200': { description: group stats } }
+  /stats/domain:
+    get:
+      summary: Investigate a domain (?domain=) — clients, decisions, first/last seen
+      parameters: [ { name: domain, in: query, required: true, schema: { type: string } } ]
+      responses: { '200': { description: domain investigation } }
+  /upstreams/{id}/health:
+    get:
+      summary: Health history for one upstream
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: health entries } }
+  /audit/log:
+    get:
+      summary: Queryable audit log (?action=&actor=&limit=&offset=)
+      responses: { '200': { description: audit entries } }
+  /audit/export:
+    get:
+      summary: Export the audit log as JSON
+      responses: { '200': { description: audit export } }
+  /enforcement/integrations:
+    get:
+      summary: Configured router/DHCP enforcement integrations
+      responses: { '200': { description: integrations } }
+  /enforcement/preview:
+    post:
+      summary: Preview what an enforcement change would do (no side effects)
+      responses: { '200': { description: change plan } }
+  /enforcement/apply:
+    post:
+      summary: Apply an enforcement plan to the configured integration
+      responses: { '200': { description: operation record } }
+  /enforcement/operations:
+    get:
+      summary: History of enforcement operations
+      responses: { '200': { description: operations } }
+  /enforcement/rollback/{id}:
+    post:
+      summary: Roll back an applied enforcement operation
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: rollback result } }
 components:
   securitySchemes:
     sessionCookie: { type: apiKey, in: cookie, name: blacknet_session }

@@ -19,6 +19,8 @@ import (
 	"github.com/w0wzahh/blacknet/internal/dnsserver"
 	"github.com/w0wzahh/blacknet/internal/events"
 	"github.com/w0wzahh/blacknet/internal/filtering"
+	"github.com/w0wzahh/blacknet/internal/localdns"
+	"github.com/w0wzahh/blacknet/internal/policies"
 	"github.com/w0wzahh/blacknet/internal/settings"
 	"github.com/w0wzahh/blacknet/internal/upstream"
 )
@@ -29,7 +31,16 @@ type fakeReloader struct {
 
 func (f *fakeReloader) ReloadRules(ctx context.Context) error     { return nil }
 func (f *fakeReloader) ReloadUpstreams(ctx context.Context) error { return nil }
-func (f *fakeReloader) GetSettings() settings.Settings            { return f.Settings }
+func (f *fakeReloader) ReloadPolicies(ctx context.Context) error  { return nil }
+func (f *fakeReloader) ReloadLocal(ctx context.Context) error     { return nil }
+func (f *fakeReloader) ScanDiscovery(ctx context.Context)         {}
+func (f *fakeReloader) PolicyResolver() *policies.Resolver {
+	return policies.NewResolver(nil, nil, nil)
+}
+func (f *fakeReloader) LocalStore() *localdns.Store {
+	return localdns.NewStore(nil)
+}
+func (f *fakeReloader) GetSettings() settings.Settings { return f.Settings }
 func (f *fakeReloader) GetDHCP(ctx context.Context) (dhcp.Config, bool, []dhcp.Lease, error) {
 	return dhcp.Config{}, false, nil, nil
 }
@@ -201,14 +212,14 @@ func TestRulesCRUDAndTest(t *testing.T) {
 	json.Unmarshal(w.Body.Bytes(), &rule)
 	// engine reflects new rule (fakeReloader reloads via real engine? no - check via rules/test)
 	// fakeReloader doesn't push into engine; call reload manually:
-	srv.d.Engine.Replace(mustRules(t, srv), nil, nil)
+	srv.d.Engine.Replace(filtering.Snapshot{Rules: mustRules(t, srv)})
 	w = req(t, srv, "POST", "/api/v1/rules/test", `{"domain":"sub.ads.x"}`, bearer())
 	if w.Code != 200 {
 		t.Fatal("rule test failed")
 	}
-	var dec filtering.Decision
-	json.Unmarshal(w.Body.Bytes(), &dec)
-	if !dec.Blocked {
+	var ex filtering.Explanation
+	json.Unmarshal(w.Body.Bytes(), &ex)
+	if !ex.Decision.Blocked {
 		t.Fatal("tree rule should block subdomain")
 	}
 	// duplicate create -> 409

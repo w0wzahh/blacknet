@@ -3,8 +3,8 @@ testdata/
 web/node_modules/
 web/dist/
 *.exe
-blacknet
-blacknet-backup-*.zip
+/blacknet
+/blacknet-backup-*.zip
 *.db
 *.db-shm
 *.db-wal

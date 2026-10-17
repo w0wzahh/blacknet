@@ -12,6 +12,13 @@ import { NetworkSetup } from './pages/NetworkSetup'
 import { Analytics } from './pages/Analytics'
 import { SettingsPage } from './pages/Settings'
 import { About } from './pages/About'
+import { Policies } from './pages/Policies'
+import { Schedules } from './pages/Schedules'
+import { Devices } from './pages/Devices'
+import { LocalDNS } from './pages/LocalDNS'
+import { Enforcement } from './pages/Enforcement'
+import { Health } from './pages/Health'
+import { Audit } from './pages/Audit'
 import { Login } from './pages/Login'
 import { SetupWizard } from './pages/SetupWizard'
 import { Loading } from './components/ui'
@@ -56,6 +63,13 @@ function Shell() {
             <Route path="/upstreams" element={<Upstreams />} />
             <Route path="/network" element={<NetworkSetup />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/policies" element={<Policies />} />
+            <Route path="/schedules" element={<Schedules />} />
+            <Route path="/devices" element={<Devices />} />
+            <Route path="/local-dns" element={<LocalDNS />} />
+            <Route path="/enforcement" element={<Enforcement />} />
+            <Route path="/health" element={<Health />} />
+            <Route path="/audit" element={<Audit />} />
             <Route path="/settings" element={<SettingsPage onChanged={() => navigate(0)} />} />
             <Route path="/about" element={<About />} />
             <Route path="*" element={<Overview />} />

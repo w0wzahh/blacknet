@@ -27,18 +27,23 @@ const (
 
 // QueryEvent describes a single DNS query for logging/statistics/SSE.
 type QueryEvent struct {
-	Time      time.Time `json:"time"`
-	ClientIP  string    `json:"client_ip"`
-	ClientID  int64     `json:"client_id"`
-	Domain    string    `json:"domain"`
-	QType     uint16    `json:"qtype"`
-	QTypeName string    `json:"qtype_name"`
-	Blocked   bool      `json:"blocked"`
-	Reason    string    `json:"reason"`
-	RCode     int       `json:"rcode"`
-	RCodeName string    `json:"rcode_name"`
-	LatencyMs float64   `json:"latency_ms"`
-	Cached    bool      `json:"cached"`
+	Time       time.Time `json:"time"`
+	ClientIP   string    `json:"client_ip"`
+	ClientID   int64     `json:"client_id"`
+	GroupID    int64     `json:"group_id"`
+	Domain     string    `json:"domain"`
+	QType      uint16    `json:"qtype"`
+	QTypeName  string    `json:"qtype_name"`
+	Blocked    bool      `json:"blocked"`
+	Reason     string    `json:"reason"`
+	RCode      int       `json:"rcode"`
+	RCodeName  string    `json:"rcode_name"`
+	LatencyMs  float64   `json:"latency_ms"`
+	UpstreamMs float64   `json:"upstream_ms"`
+	Cached     bool      `json:"cached"`
+	// DNSSEC is the upstream-validation outcome for forwarded queries:
+	// "", "authenticated" (AD set) or "unsigned" (DO requested, AD clear).
+	DNSSEC string `json:"dnssec,omitempty"`
 }
 
 // Resolver is anything that can forward a DNS query (the upstream pool).
@@ -46,16 +51,40 @@ type Resolver interface {
 	Exchange(ctx context.Context, req *dns.Msg) (*dns.Msg, error)
 }
 
+// ResolverFunc adapts a function to Resolver.
+type ResolverFunc func(ctx context.Context, req *dns.Msg) (*dns.Msg, error)
+
+// Exchange calls f.
+func (f ResolverFunc) Exchange(ctx context.Context, req *dns.Msg) (*dns.Msg, error) {
+	return f(ctx, req)
+}
+
+// LocalStore serves local DNS records. Implemented by internal/localdns.
+type LocalStore interface {
+	// Answer returns a complete response for q, or nil when no local record
+	// applies (the query continues through the normal pipeline).
+	Answer(q dns.Question) *dns.Msg
+}
+
 // Options configures a Server.
 type Options struct {
-	Addrs        []string       // "ip:port" listen addresses
-	Trusted      []netip.Prefix // allowed client CIDRs
-	Engine       *filtering.Engine
-	Upstream     Resolver
-	Cache        *cache.Cache
-	Publish      func(QueryEvent)       // async event sink (must not block)
-	LookupClient func(netip.Addr) int64 // optional client-id resolution
-	Logger       *slog.Logger
+	Addrs    []string       // "ip:port" listen addresses
+	Trusted  []netip.Prefix // allowed client CIDRs
+	Engine   *filtering.Engine
+	Upstream Resolver
+	Cache    *cache.Cache
+	Publish  func(QueryEvent) // async event sink (must not block)
+	// SubjectFor resolves a source IP into its client id and policy group.
+	SubjectFor func(netip.Addr) filtering.Subject
+	// Local answers local DNS records before filtering (may be nil).
+	Local LocalStore
+	// ResolverFor returns the upstream for a policy group (nil = default).
+	ResolverFor func(groupID int64) Resolver
+	// DNSSECUpstream passes the DO bit to upstreams and records the AD flag
+	// in the response (upstream-side validation; Blacknet does not itself
+	// validate signatures).
+	DNSSECUpstream bool
+	Logger         *slog.Logger
 }
 
 // Server is a concurrent UDP+TCP DNS server.
@@ -63,6 +92,7 @@ type Server struct {
 	opts Options
 
 	blockMode atomic.Int32 // 0=nxdomain, 1=null
+	dnssec    atomic.Bool  // DO passthrough, runtime-toggleable
 
 	mu    sync.Mutex
 	svrs  []*dns.Server
@@ -81,8 +111,13 @@ func New(opts Options) *Server {
 	if opts.Logger == nil {
 		opts.Logger = slog.Default()
 	}
-	return &Server{opts: opts, log: opts.Logger}
+	s := &Server{opts: opts, log: opts.Logger}
+	s.dnssec.Store(opts.DNSSECUpstream)
+	return s
 }
+
+// SetDNSSECUpstream toggles DO-bit passthrough and AD recording at runtime.
+func (s *Server) SetDNSSECUpstream(on bool) { s.dnssec.Store(on) }
 
 // SetBlockingMode switches between ModeNXDomain and ModeNullIP at runtime.
 func (s *Server) SetBlockingMode(mode string) error {
@@ -195,9 +230,12 @@ func (s *Server) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	if s.opts.LookupClient != nil {
-		ev.ClientID = s.opts.LookupClient(clientIP)
+	var sub filtering.Subject
+	if s.opts.SubjectFor != nil {
+		sub = s.opts.SubjectFor(clientIP)
+		sub.Now = ev.Time
 	}
+	ev.ClientID, ev.GroupID = sub.ClientID, sub.GroupID
 
 	if len(r.Question) == 0 {
 		ev.Reason = "malformed query"
@@ -212,10 +250,22 @@ func (s *Server) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	ev.QType = q.Qtype
 	ev.QTypeName = dns.TypeToString[q.Qtype]
 
+	// Local DNS records answer before filtering and upstream forwarding
+	// (authoritative for local names; documented precedence level 0).
+	if s.opts.Local != nil {
+		if m := s.opts.Local.Answer(q); m != nil {
+			m.Id = r.Id
+			ev.Reason = "local record"
+			ev.RCode, ev.RCodeName = m.Rcode, dns.RcodeToString[m.Rcode]
+			_ = w.WriteMsg(m)
+			return
+		}
+	}
+
 	// Filtering decision.
 	var dec filtering.Decision
 	if s.opts.Engine != nil {
-		dec = s.opts.Engine.Decide(domain, ev.ClientID)
+		dec = s.opts.Engine.Decide(domain, sub)
 	} else {
 		dec = filtering.Decision{Reason: filtering.ReasonAllowedDefault}
 	}
@@ -242,10 +292,38 @@ func (s *Server) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	}
 
-	// Forward upstream.
+	// Forward upstream — a group upstream override wins over the default pool.
+	up := s.opts.Upstream
+	if s.opts.ResolverFor != nil {
+		if u := s.opts.ResolverFor(sub.GroupID); u != nil {
+			up = u
+		}
+	}
+	if up == nil {
+		s.failures.Add(1)
+		ev.Reason = "no upstream configured"
+		m := new(dns.Msg).SetRcode(r, dns.RcodeServerFailure)
+		ev.RCode, ev.RCodeName = m.Rcode, dns.RcodeToString[m.Rcode]
+		_ = w.WriteMsg(m)
+		return
+	}
+	req := r
+	if s.dnssec.Load() {
+		req = r.Copy()
+		req.SetEdns0(4096, true)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	resp, err := s.opts.Upstream.Exchange(ctx, r)
+	upStart := time.Now()
+	resp, err := up.Exchange(ctx, req)
+	ev.UpstreamMs = float64(time.Since(upStart)) / float64(time.Millisecond)
+	if s.dnssec.Load() && resp != nil {
+		if resp.AuthenticatedData {
+			ev.DNSSEC = "authenticated"
+		} else {
+			ev.DNSSEC = "unsigned"
+		}
+	}
 	if err != nil {
 		s.failures.Add(1)
 		ev.Reason = string(filtering.ReasonUpstreamFailure)

@@ -90,6 +90,36 @@ export function SettingsPage({ onChanged }: { onChanged?: () => void }) {
           </select>
         </Field>
         {fe('blocking_mode')}
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm text-zinc-300">DNSSEC upstream validation</div>
+            <div className="text-xs text-zinc-500">Forward DO (DNSSEC OK) bits and record AD status on logged queries. Requires a DNSSEC-validating upstream.</div>
+          </div>
+          <Toggle on={s.dnssec_upstream} onChange={v => patch({ dnssec_upstream: v })} />
+        </div>
+      </section>
+
+      <section className="card space-y-4 p-5">
+        <h2 className="text-sm font-semibold text-zinc-200">Logging & discovery</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm text-zinc-300">Query logging</div>
+            <div className="text-xs text-zinc-500">Persist every query to SQLite. Disable for maximum privacy — analytics will be empty.</div>
+          </div>
+          <Toggle on={s.query_logging_enabled} onChange={v => patch({ query_logging_enabled: v })} />
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm text-zinc-300">Passive device discovery</div>
+            <div className="text-xs text-zinc-500">Watch the neighbor table and DHCP leases for new devices. Nothing is probed.</div>
+          </div>
+          <Toggle on={s.discovery_enabled} onChange={v => patch({ discovery_enabled: v })} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Discovery interval (s)"><input className="input w-full" type="number" value={s.discovery_interval_seconds} onChange={e => patch({ discovery_interval_seconds: Number(e.target.value) })} /></Field>
+          <Field label="Audit log retention (days)"><input className="input w-full" type="number" value={s.audit_retention_days} onChange={e => patch({ audit_retention_days: Number(e.target.value) })} /></Field>
+        </div>
+        {fe('discovery_interval_seconds')}{fe('audit_retention_days')}
       </section>
 
       <section className="card space-y-4 p-5">

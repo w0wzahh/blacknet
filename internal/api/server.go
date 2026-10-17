@@ -22,8 +22,11 @@ import (
 	"github.com/w0wzahh/blacknet/internal/database"
 	"github.com/w0wzahh/blacknet/internal/dhcp"
 	"github.com/w0wzahh/blacknet/internal/dnsserver"
+	"github.com/w0wzahh/blacknet/internal/enforcement"
 	"github.com/w0wzahh/blacknet/internal/events"
 	"github.com/w0wzahh/blacknet/internal/filtering"
+	"github.com/w0wzahh/blacknet/internal/localdns"
+	"github.com/w0wzahh/blacknet/internal/policies"
 	"github.com/w0wzahh/blacknet/internal/settings"
 	"github.com/w0wzahh/blacknet/internal/upstream"
 )
@@ -33,6 +36,11 @@ import (
 type Reloader interface {
 	ReloadRules(context.Context) error
 	ReloadUpstreams(context.Context) error
+	ReloadPolicies(context.Context) error
+	ReloadLocal(context.Context) error
+	ScanDiscovery(context.Context)
+	PolicyResolver() *policies.Resolver
+	LocalStore() *localdns.Store
 	UpdateSettings(context.Context, map[string]json.RawMessage) (settings.Settings, map[string]string, error)
 	GetSettings() settings.Settings
 	GetDHCP(context.Context) (dhcp.Config, bool, []dhcp.Lease, error)
@@ -52,6 +60,7 @@ type Deps struct {
 	QLog    *database.QueryLogger
 	Auth    *auth.Manager
 	App     Reloader
+	Enf     *enforcement.Manager
 	Version string
 	WebRoot string
 }
@@ -174,6 +183,67 @@ func (s *Server) routes() {
 	authd("GET /api/v1/dhcp", s.hDHCPGet)
 	authd("PUT /api/v1/dhcp", s.hDHCPSet)
 	authd("POST /api/v1/dhcp/detect", s.hDHCPDetect)
+
+	// ---------- V2 ----------
+	authd("GET /api/v1/policies/groups", s.hGroups)
+	authd("POST /api/v1/policies/groups", s.hGroupCreate)
+	authd("PATCH /api/v1/policies/groups/{id}", s.hGroupPatch)
+	authd("DELETE /api/v1/policies/groups/{id}", s.hGroupDelete)
+	authd("POST /api/v1/policies/groups/{id}/duplicate", s.hGroupDuplicate)
+	authd("GET /api/v1/policies/assignments", s.hAssignments)
+	authd("POST /api/v1/policies/assignments", s.hAssignmentCreate)
+	authd("DELETE /api/v1/policies/assignments/{id}", s.hAssignmentDelete)
+	authd("POST /api/v1/policies/simulate", s.hPolicySimulate)
+
+	authd("GET /api/v1/rules/inspect", s.hRuleInspect)
+	authd("POST /api/v1/rules/batch-test", s.hRuleBatchTest)
+	authd("GET /api/v1/rules/conflicts", s.hRuleConflicts)
+
+	authd("GET /api/v1/schedules", s.hSchedules)
+	authd("POST /api/v1/schedules", s.hScheduleCreate)
+	authd("PATCH /api/v1/schedules/{id}", s.hSchedulePatch)
+	authd("DELETE /api/v1/schedules/{id}", s.hScheduleDelete)
+	authd("GET /api/v1/schedules/{id}/preview", s.hSchedulePreview)
+
+	authd("GET /api/v1/local-dns", s.hLocalRecords)
+	authd("POST /api/v1/local-dns", s.hLocalRecordCreate)
+	authd("PATCH /api/v1/local-dns/{id}", s.hLocalRecordPatch)
+	authd("DELETE /api/v1/local-dns/{id}", s.hLocalRecordDelete)
+	authd("POST /api/v1/local-dns/test", s.hLocalRecordTest)
+
+	authd("GET /api/v1/discovery/events", s.hDiscoveryEvents)
+	authd("POST /api/v1/discovery/events/{id}/ack", s.hDiscoveryAck)
+	authd("POST /api/v1/discovery/scan", s.hDiscoveryScan)
+	authd("GET /api/v1/clients/{id}/identities", s.hClientIdentities)
+	authd("POST /api/v1/clients/{id}/identities", s.hClientIdentityBind)
+	authd("DELETE /api/v1/clients/{id}/identities/{iid}", s.hClientIdentityUnbind)
+
+	authd("GET /api/v1/blocklists/{id}/history", s.hBlocklistHistory)
+	authd("GET /api/v1/blocklists/{id}/groups", s.hBlocklistGroups)
+	authd("PUT /api/v1/blocklists/{id}/groups", s.hBlocklistSetGroups)
+	authd("GET /api/v1/blocklists/profiles", s.hBlocklistProfiles)
+	authd("POST /api/v1/blocklists/profile", s.hBlocklistApplyProfile)
+	authd("GET /api/v1/blocklists/recommendations", s.hBlocklistRecommendations)
+
+	authd("GET /api/v1/stats/latency", s.hStatsLatency)
+	authd("GET /api/v1/stats/errors", s.hStatsErrors)
+	authd("GET /api/v1/stats/groups", s.hStatsGroups)
+	authd("GET /api/v1/stats/domain", s.hStatsDomain)
+	authd("GET /api/v1/clients/{id}/stats", s.hClientStats)
+	authd("GET /api/v1/upstreams/{id}/health", s.hUpstreamHealth)
+
+	authd("GET /api/v1/audit/log", s.hAuditLog)
+	authd("GET /api/v1/audit/export", s.hAuditExport)
+
+	authd("GET /api/v1/system/health", s.hSystemHealth)
+	authd("GET /api/v1/diagnostics/export", s.hDiagnosticsExport)
+	authd("GET /api/v1/network/protection", s.hNetworkProtection)
+
+	authd("GET /api/v1/enforcement/integrations", s.hEnforcementIntegrations)
+	authd("POST /api/v1/enforcement/preview", s.hEnforcementPreview)
+	authd("POST /api/v1/enforcement/apply", s.hEnforcementApply)
+	authd("POST /api/v1/enforcement/rollback/{id}", s.hEnforcementRollback)
+	authd("GET /api/v1/enforcement/operations", s.hEnforcementOps)
 
 	pub("GET /api/v1/openapi.yaml", s.hOpenAPI)
 

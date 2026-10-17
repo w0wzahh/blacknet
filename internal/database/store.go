@@ -71,7 +71,8 @@ func (db *DB) AllSettings() (map[string]json.RawMessage, error) {
 // ListRules returns all user rules.
 func (db *DB) ListRules(ctx context.Context) ([]filtering.Rule, error) {
 	rows, err := db.SQL.QueryContext(ctx,
-		`SELECT id, domain, action, scope, client_id, comment, enabled FROM rules ORDER BY id`)
+		`SELECT id, domain, action, scope, client_id, group_id, comment, enabled, expires_at
+		 FROM rules ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +81,8 @@ func (db *DB) ListRules(ctx context.Context) ([]filtering.Rule, error) {
 	for rows.Next() {
 		var r filtering.Rule
 		var enabled int
-		if err := rows.Scan(&r.ID, &r.Domain, &r.Action, &r.Scope, &r.ClientID, &r.Comment, &enabled); err != nil {
+		if err := rows.Scan(&r.ID, &r.Domain, &r.Action, &r.Scope, &r.ClientID,
+			&r.GroupID, &r.Comment, &enabled, &r.ExpiresAt); err != nil {
 			return nil, err
 		}
 		r.Enabled = enabled != 0
@@ -91,11 +93,12 @@ func (db *DB) ListRules(ctx context.Context) ([]filtering.Rule, error) {
 
 // AddRule inserts a user rule.
 func (db *DB) AddRule(ctx context.Context, r *filtering.Rule) error {
+	now := time.Now().UTC().Format(time.RFC3339)
 	res, err := db.SQL.ExecContext(ctx,
-		`INSERT INTO rules(domain, action, scope, client_id, comment, enabled, created_at)
-		 VALUES(?,?,?,?,?,?,?)`,
+		`INSERT INTO rules(domain, action, scope, client_id, group_id, comment, enabled, expires_at, created_at, updated_at)
+		 VALUES(?,?,?,?,?,?,?,?,?,?)`,
 		filtering.Normalize(r.Domain), string(r.Action), string(r.Scope),
-		r.ClientID, r.Comment, boolInt(r.Enabled), time.Now().UTC().Format(time.RFC3339))
+		r.ClientID, r.GroupID, r.Comment, boolInt(r.Enabled), r.ExpiresAt, now, now)
 	if err != nil {
 		if isUniqueErr(err) {
 			return ErrDuplicate
@@ -109,9 +112,10 @@ func (db *DB) AddRule(ctx context.Context, r *filtering.Rule) error {
 // UpdateRule patches an existing rule.
 func (db *DB) UpdateRule(ctx context.Context, r *filtering.Rule) error {
 	res, err := db.SQL.ExecContext(ctx,
-		`UPDATE rules SET domain=?, action=?, scope=?, client_id=?, comment=?, enabled=? WHERE id=?`,
+		`UPDATE rules SET domain=?, action=?, scope=?, client_id=?, group_id=?, comment=?, enabled=?, expires_at=?, updated_at=? WHERE id=?`,
 		filtering.Normalize(r.Domain), string(r.Action), string(r.Scope),
-		r.ClientID, r.Comment, boolInt(r.Enabled), r.ID)
+		r.ClientID, r.GroupID, r.Comment, boolInt(r.Enabled), r.ExpiresAt,
+		time.Now().UTC().Format(time.RFC3339), r.ID)
 	if err != nil {
 		if isUniqueErr(err) {
 			return ErrDuplicate
@@ -122,6 +126,16 @@ func (db *DB) UpdateRule(ctx context.Context, r *filtering.Rule) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+// DeleteExpiredRules removes temporary rules past their expiry. Returns count.
+func (db *DB) DeleteExpiredRules(ctx context.Context, now time.Time) (int64, error) {
+	res, err := db.SQL.ExecContext(ctx,
+		`DELETE FROM rules WHERE expires_at != '' AND expires_at <= ?`, now.UTC().Format(time.RFC3339))
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 // DeleteRule removes a rule.
@@ -338,6 +352,25 @@ func (db *DB) ImportedDomains(ctx context.Context) (blocks, allows map[string]in
 	return blocks, allows, rows.Err()
 }
 
+// ListDomains returns one list's block domains (for overlap analysis).
+func (db *DB) ListDomains(ctx context.Context, listID int64) (map[string]struct{}, error) {
+	rows, err := db.SQL.QueryContext(ctx,
+		`SELECT domain FROM blocklist_domains WHERE list_id=? AND allow=0`, listID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]struct{}{}
+	for rows.Next() {
+		var d string
+		if err := rows.Scan(&d); err != nil {
+			return nil, err
+		}
+		out[d] = struct{}{}
+	}
+	return out, rows.Err()
+}
+
 // ---------- Upstreams ----------
 
 // ListUpstreams returns resolver rows.
@@ -403,53 +436,87 @@ func (db *DB) DeleteUpstream(ctx context.Context, id int64) error {
 
 // ---------- Clients ----------
 
-// Client is a known source of DNS queries.
+// Client is a known source of DNS queries (a device).
 type Client struct {
 	ID             int64  `json:"id"`
 	IP             string `json:"ip"`
 	Alias          string `json:"alias"`
-	Group          string `json:"group"`
+	Group          string `json:"group"` // legacy free-text label
+	PolicyGroupID  int64  `json:"policy_group_id"`
+	PolicyGroup    string `json:"policy_group,omitempty"`
+	Classification string `json:"classification"`
+	IdentitySource string `json:"identity_source"`
+	Notes          string `json:"notes"`
 	FirstSeen      string `json:"first_seen"`
 	LastSeen       string `json:"last_seen"`
 	TotalQueries   int64  `json:"total_queries"`
 	BlockedQueries int64  `json:"blocked_queries"`
 }
 
+const clientCols = `c.id,c.ip,c.alias,c.grp,c.policy_group_id,c.classification,
+	c.identity_source,c.notes,c.first_seen,c.last_seen,c.total_queries,c.blocked_queries`
+
+func scanClient(row interface{ Scan(...any) error }) (*Client, error) {
+	var c Client
+	if err := row.Scan(&c.ID, &c.IP, &c.Alias, &c.Group, &c.PolicyGroupID,
+		&c.Classification, &c.IdentitySource, &c.Notes, &c.FirstSeen, &c.LastSeen,
+		&c.TotalQueries, &c.BlockedQueries); err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
 // ListClients returns all known clients.
 func (db *DB) ListClients(ctx context.Context) ([]Client, error) {
 	rows, err := db.SQL.QueryContext(ctx,
-		`SELECT id,ip,alias,grp,first_seen,last_seen,total_queries,blocked_queries FROM clients ORDER BY last_seen DESC`)
+		`SELECT `+clientCols+` FROM clients c ORDER BY c.last_seen DESC`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	out := []Client{}
 	for rows.Next() {
-		var c Client
-		if err := rows.Scan(&c.ID, &c.IP, &c.Alias, &c.Group, &c.FirstSeen, &c.LastSeen,
-			&c.TotalQueries, &c.BlockedQueries); err != nil {
+		c, err := scanClient(rows)
+		if err != nil {
 			return nil, err
 		}
-		out = append(out, c)
+		out = append(out, *c)
 	}
 	return out, rows.Err()
 }
 
-// GetClient returns one client.
+// GetClient returns one client, with its policy-group name resolved.
 func (db *DB) GetClient(ctx context.Context, id int64) (*Client, error) {
+	row := db.SQL.QueryRowContext(ctx,
+		`SELECT `+clientCols+`, COALESCE(g.name,'')
+		 FROM clients c LEFT JOIN policy_groups g ON g.id=c.policy_group_id
+		 WHERE c.id=?`, id)
 	var c Client
-	err := db.SQL.QueryRowContext(ctx,
-		`SELECT id,ip,alias,grp,first_seen,last_seen,total_queries,blocked_queries FROM clients WHERE id=?`, id).
-		Scan(&c.ID, &c.IP, &c.Alias, &c.Group, &c.FirstSeen, &c.LastSeen, &c.TotalQueries, &c.BlockedQueries)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+	if err := row.Scan(&c.ID, &c.IP, &c.Alias, &c.Group, &c.PolicyGroupID,
+		&c.Classification, &c.IdentitySource, &c.Notes, &c.FirstSeen, &c.LastSeen,
+		&c.TotalQueries, &c.BlockedQueries, &c.PolicyGroup); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
 	}
-	return &c, err
+	return &c, nil
 }
 
-// UpdateClient patches alias/group.
-func (db *DB) UpdateClient(ctx context.Context, id int64, alias, grp string) error {
-	res, err := db.SQL.ExecContext(ctx, `UPDATE clients SET alias=?, grp=? WHERE id=?`, alias, grp, id)
+// ClientUpdate is a patch for a device row.
+type ClientUpdate struct {
+	Alias          string `json:"alias"`
+	Group          string `json:"group"`
+	PolicyGroupID  int64  `json:"policy_group_id"`
+	Classification string `json:"classification"`
+	Notes          string `json:"notes"`
+}
+
+// UpdateClient patches alias/group/policy/classification/notes.
+func (db *DB) UpdateClient(ctx context.Context, id int64, u ClientUpdate) error {
+	res, err := db.SQL.ExecContext(ctx,
+		`UPDATE clients SET alias=?, grp=?, policy_group_id=?, classification=?, notes=? WHERE id=?`,
+		u.Alias, u.Group, u.PolicyGroupID, u.Classification, u.Notes, id)
 	if err != nil {
 		return err
 	}
@@ -457,6 +524,24 @@ func (db *DB) UpdateClient(ctx context.Context, id int64, alias, grp string) err
 		return ErrNotFound
 	}
 	return nil
+}
+
+// ClientGroupMap returns client_id -> policy_group_id for every row.
+func (db *DB) ClientGroupMap(ctx context.Context) (map[int64]int64, error) {
+	rows, err := db.SQL.QueryContext(ctx, `SELECT id, policy_group_id FROM clients`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64]int64{}
+	for rows.Next() {
+		var id, gid int64
+		if err := rows.Scan(&id, &gid); err != nil {
+			return nil, err
+		}
+		out[id] = gid
+	}
+	return out, rows.Err()
 }
 
 // DeleteClient forgets a client and its statistics.

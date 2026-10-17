@@ -132,7 +132,7 @@ func TestEndToEnd(t *testing.T) {
 	apiSrv := api.New(api.Deps{
 		Cfg: cfg, DB: a.DB, Engine: a.Engine, DNS: a.DNS, Pool: a.Pool,
 		Cache: a.Cache, Lists: a.Lists, Bus: a.Bus, QLog: a.QLog,
-		Auth: am, App: a, Version: "e2e",
+		Auth: am, App: a, Enf: a.Enf, Version: "e2e",
 	})
 	httpSrv := httptest.NewServer(apiSrv.Handler())
 	defer httpSrv.Close()
@@ -196,7 +196,59 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("allow rule should have unblocked, got %s", dns.RcodeToString[resp.Rcode])
 	}
 
-	// 6. Restart: reopen the app on the same data dir and confirm persistence.
+	// 6. V2: policy group + IP assignment + group-scoped rule only affects that group.
+	rs, body = apiReq(t, base, "POST", "/api/v1/policies/groups", `{"name":"strict"}`)
+	if rs.StatusCode != 201 {
+		t.Fatalf("create group: %s %s", rs.Status, body)
+	}
+	var grp struct {
+		ID int64 `json:"id"`
+	}
+	json.Unmarshal([]byte(body), &grp)
+	rs, body = apiReq(t, base, "POST", "/api/v1/policies/assignments",
+		fmt.Sprintf(`{"kind":"ip","value":"127.0.0.1","group_id":%d}`, grp.ID))
+	if rs.StatusCode != 201 {
+		t.Fatalf("assign: %s %s", rs.Status, body)
+	}
+	rs, body = apiReq(t, base, "POST", "/api/v1/rules",
+		fmt.Sprintf(`{"domain":"grponly.e2e","action":"block","scope":"tree","group_id":%d}`, grp.ID))
+	if rs.StatusCode != 201 {
+		t.Fatalf("group rule: %s %s", rs.Status, body)
+	}
+	// Our queries come from 127.0.0.1 → resolved into group → blocked.
+	resp = dnsQuery(t, dnsAddr, "grponly.e2e")
+	if resp.Rcode != dns.RcodeNameError {
+		t.Fatalf("group rule should block assigned client, got %s", dns.RcodeToString[resp.Rcode])
+	}
+	// Hypothetical subject outside the group must still resolve.
+	rs, body = apiReq(t, base, "POST", "/api/v1/policies/simulate",
+		`{"domain":"grponly.e2e","client_id":0}`)
+	var sim struct {
+		Decision struct {
+			Blocked bool `json:"blocked"`
+		} `json:"decision"`
+	}
+	json.Unmarshal([]byte(body), &sim)
+	if rs.StatusCode != 200 || sim.Decision.Blocked {
+		t.Fatalf("unassigned subject must not be blocked by group rule: %s %s", rs.Status, body)
+	}
+
+	// 7. V2: local DNS record answers without upstream.
+	rs, body = apiReq(t, base, "POST", "/api/v1/local-dns",
+		`{"name":"nas.lan","type":"A","value":"10.9.9.9","ttl":60}`)
+	if rs.StatusCode != 201 {
+		t.Fatalf("local record: %s %s", rs.Status, body)
+	}
+	resp = dnsQuery(t, dnsAddr, "nas.lan")
+	if resp.Rcode != dns.RcodeSuccess || len(resp.Answer) != 1 {
+		t.Fatalf("local dns: %v", resp)
+	}
+	a1, ok := resp.Answer[0].(*dns.A)
+	if !ok || a1.A.String() != "10.9.9.9" {
+		t.Fatalf("local dns wrong answer: %v", resp.Answer)
+	}
+
+	// 8. Restart: reopen the app on the same data dir and confirm persistence.
 	a.Shutdown(context.Background())
 	a2, err := app.New(cfg)
 	if err != nil {
@@ -204,12 +256,20 @@ func TestEndToEnd(t *testing.T) {
 	}
 	defer a2.Shutdown(context.Background())
 	rules2, err := a2.DB.ListRules(ctx)
-	if err != nil || len(rules2) != 1 || rules2[0].Action != "allow" {
+	if err != nil || len(rules2) != 2 {
 		t.Fatalf("rules not persisted after restart: %+v err=%v", rules2, err)
 	}
 	clients, _ := a2.DB.ListClients(ctx)
 	if len(clients) == 0 {
 		t.Fatal("clients not persisted")
+	}
+	groups2, _ := a2.DB.ListGroups(ctx)
+	if len(groups2) != 1 || groups2[0].Name != "strict" {
+		t.Fatalf("policy groups not persisted: %+v", groups2)
+	}
+	recs2, _ := a2.DB.ListLocalRecords(ctx)
+	if len(recs2) != 1 || recs2[0].Name != "nas.lan" {
+		t.Fatalf("local records not persisted: %+v", recs2)
 	}
 	_ = netip.IPv6Unspecified // keep import used
 }

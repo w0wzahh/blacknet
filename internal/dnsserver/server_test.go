@@ -116,7 +116,7 @@ func query(t *testing.T, addr, name string, qtype uint16, net_ string) *dns.Msg 
 func TestBlockedDomainNXDOMAIN(t *testing.T) {
 	up := startMockUpstream(t)
 	e := filtering.NewEngine()
-	e.Replace(nil, map[string]int64{"ads.test": 1}, nil)
+	e.Replace(filtering.Snapshot{Blocks: map[string]int64{"ads.test": 1}})
 	pool, _ := upstream.NewPool([]upstream.Config{{
 		ID: 1, Protocol: upstream.ProtoUDP, Address: up.addr, Timeout: 2 * time.Second, Enabled: true,
 	}}, false)
@@ -136,7 +136,7 @@ func TestBlockedDomainNXDOMAIN(t *testing.T) {
 func TestBlockedNullMode(t *testing.T) {
 	up := startMockUpstream(t)
 	e := filtering.NewEngine()
-	e.Replace(nil, map[string]int64{"ads.test": 1}, nil)
+	e.Replace(filtering.Snapshot{Blocks: map[string]int64{"ads.test": 1}})
 	pool, _ := upstream.NewPool([]upstream.Config{{
 		ID: 1, Protocol: upstream.ProtoUDP, Address: up.addr, Timeout: 2 * time.Second, Enabled: true,
 	}}, false)
@@ -193,7 +193,7 @@ func TestAllowedForwardedUDPAndTCP(t *testing.T) {
 func TestAllowRuleOverridesBlocklistLive(t *testing.T) {
 	up := startMockUpstream(t)
 	e := filtering.NewEngine()
-	e.Replace(nil, map[string]int64{"ads.test": 1}, nil)
+	e.Replace(filtering.Snapshot{Blocks: map[string]int64{"ads.test": 1}})
 	pool, _ := upstream.NewPool([]upstream.Config{{
 		ID: 1, Protocol: upstream.ProtoUDP, Address: up.addr, Timeout: 2 * time.Second, Enabled: true,
 	}}, false)
@@ -203,9 +203,12 @@ func TestAllowRuleOverridesBlocklistLive(t *testing.T) {
 		t.Fatal("expected block")
 	}
 	// Rule change without restart.
-	e.Replace([]filtering.Rule{{
-		ID: 1, Domain: "ads.test", Action: filtering.ActionAllow, Scope: filtering.ScopeExact, Enabled: true,
-	}}, map[string]int64{"ads.test": 1}, nil)
+	e.Replace(filtering.Snapshot{
+		Rules: []filtering.Rule{{
+			ID: 1, Domain: "ads.test", Action: filtering.ActionAllow, Scope: filtering.ScopeExact, Enabled: true,
+		}},
+		Blocks: map[string]int64{"ads.test": 1},
+	})
 	resp := query(t, addr, "ads.test", dns.TypeA, "udp")
 	if resp.Rcode != dns.RcodeSuccess || len(resp.Answer) != 1 {
 		t.Fatal("expected resolution after allow rule")
@@ -294,7 +297,7 @@ func TestMalformedPacket(t *testing.T) {
 func TestConcurrentQueries(t *testing.T) {
 	up := startMockUpstream(t)
 	e := filtering.NewEngine()
-	e.Replace(nil, map[string]int64{"ads.test": 1}, nil)
+	e.Replace(filtering.Snapshot{Blocks: map[string]int64{"ads.test": 1}})
 	pool, _ := upstream.NewPool([]upstream.Config{{
 		ID: 1, Protocol: upstream.ProtoUDP, Address: up.addr, Timeout: 2 * time.Second, Enabled: true,
 	}}, false)

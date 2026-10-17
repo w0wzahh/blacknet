@@ -10,10 +10,21 @@ internal/
   config/               YAML bootstrap config (listen addrs, data dir, CIDRs)
   dnsserver/            real DNS server: UDP+TCP listeners, trusted-client
                         enforcement, filter -> cache -> upstream pipeline
-  filtering/            deterministic rule engine + blocklist parsers
+  filtering/            deterministic rule engine + blocklist parsers;
+                        subjects carry client/group/schedule context
+  policies/             policy groups, client/IP/CIDR assignment resolver,
+                        per-group upstream overrides
+  localdns/             local DNS records (A/AAAA/CNAME/TXT/PTR), wildcards,
+                        reverse zones, conflict warnings
+  schedules/            time-window policies (protection off/on per target)
+  discovery/            passive device inventory (neighbor table, DHCP leases),
+                        client identity bindings
+  enforcement/          router integration adapters (OpenWrt/SSH), change
+                        preview/apply/rollback with snapshots
   cache/                TTL-aware in-memory answer cache
   upstream/             UDP/TCP/DoT/DoH resolvers, failover, health probes
-  blocklists/           downloads, ETag/hash caching, SSRF validation
+  blocklists/           downloads, ETag/hash caching, SSRF validation,
+                        quality metrics, profiles, group restrictions
   database/             SQLite (modernc.org/sqlite), migrations, stores,
                         async batched query writer, statistics queries
   api/                  /api/v1 REST, SSE live stream, SPA hosting
@@ -33,10 +44,14 @@ deploy/                 systemd unit, Windows service scripts, OpenWrt notes
 ```
 client :53 ──► dnsserver.ServeDNS
                  │ trusted CIDR check ──► REFUSED + log
-                 │ filtering.Engine.Decide(domain, clientID)
+                 │ SubjectFor(ip) ──► {clientID, groupID} via policies.Resolver
+                 │ localdns.Store ──► local record hit: answer directly
+                 │ filtering.Engine.Decide(domain, subject)
                  │   blocked ──► synthesize NXDOMAIN / null answer
                  │   allowed ──► cache.Get ──► hit: serve stale-free copy
                  │             └─► miss: upstream.Pool.Exchange
+                 │                     (group upstream override if set;
+                 │                      Do bit added when DNSSEC mode on)
                  │                     ├─ ok  → cache.Store, reply
                  │                     └─ err → SERVFAIL, log upstream failure
                  └──► nonblocking publish → (SQLite writer queue, SSE hub)
@@ -49,13 +64,19 @@ growing memory or stalling resolution.
 
 ## Rule precedence (deterministic)
 
-1. Exact-domain **allow** rules (client-scoped beats global)
-2. Exact-domain **block** rules (client-scoped beats global)
-3. Tree rules — the most specific match wins; ties: client-scoped > global,
+1. Local DNS records (authoritative answers, including wildcards and PTR)
+2. Protection switch and `protection_off` schedules
+3. Exact-domain rules — client-scoped > group-scoped > global
+4. Tree rules — most specific suffix wins; ties: client > group > global,
    block > allow
-4. Blocklist `@@` exception domains (tree match)
-5. Blocklist block domains (tree match)
-6. Default allow → upstream resolution
+5. Blocklist `@@` exception domains (tree match), honouring group restrictions
+6. Blocklist block domains (tree match), honouring group restrictions
+7. Default allow → upstream resolution (per-group upstream override if set)
+
+`Engine.Decide` and `Engine.Explain` share one evaluation path — the API
+simulator returns the same decision plus a human-readable trace. Disabled
+groups contribute no rules or list restrictions; expired rules are dropped at
+snapshot build.
 
 Engine state is rebuilt atomically on any change (`Engine.Replace`), so rule
 and blocklist edits apply without restarting listeners.
@@ -63,9 +84,12 @@ and blocklist edits apply without restarting listeners.
 ## Persistence
 
 SQLite, WAL mode, single connection (serialized writes), busy_timeout 5s.
-Tables: settings, clients, queries, blocklists, blocklist_domains, rules,
-upstreams, audit, schema_migrations. Retention worker deletes old query rows
-every 6 h per `query_retention_days`.
+Tables: settings, clients, queries, blocklists, blocklist_domains,
+blocklist_history, list_groups, rules, upstreams, health_history, audit,
+policy_groups, policy_assignments, client_identities, discovery_events,
+local_dns, schedules, enforcement_ops, schema_migrations. Retention worker
+deletes old query rows every 6 h per `query_retention_days`; audit and
+discovery events are bounded separately.
 
 ## Security surface
 

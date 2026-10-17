@@ -325,6 +325,32 @@ func (p *Pool) exchangeParallel(ctx context.Context, rs []*resolver, req *dns.Ms
 	return nil, fmt.Errorf("all upstreams failed: %w", lastErr)
 }
 
+// ExchangeWith forwards through exactly one resolver (a policy group's
+// upstream override). Returns an error when the id is unknown or disabled.
+func (p *Pool) ExchangeWith(ctx context.Context, id int64, req *dns.Msg) (*dns.Msg, error) {
+	p.mu.RLock()
+	var target *resolver
+	for _, r := range p.resolvers {
+		if r.cfg.ID == id {
+			target = r
+			break
+		}
+	}
+	p.mu.RUnlock()
+	if target == nil {
+		return nil, fmt.Errorf("upstream %d not available", id)
+	}
+	return target.exchange(ctx, req)
+}
+
+// ResolverByID returns a Resolver bound to one upstream, or nil.
+// Used to serve group-scoped upstream overrides without locking the pool.
+func (p *Pool) ResolverByID(id int64) func(ctx context.Context, req *dns.Msg) (*dns.Msg, error) {
+	return func(ctx context.Context, req *dns.Msg) (*dns.Msg, error) {
+		return p.ExchangeWith(ctx, id, req)
+	}
+}
+
 // Stats returns a snapshot for every configured resolver (enabled or not).
 func (p *Pool) Stats() map[int64]Stats {
 	p.mu.RLock()

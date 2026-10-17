@@ -22,7 +22,7 @@ func BenchmarkBlocked(b *testing.B) {
 	for i := 0; i < 200000; i++ {
 		blocks[fmt.Sprintf("ads%d.example", i)] = 1
 	}
-	e.Replace(nil, blocks, nil)
+	e.Replace(filtering.Snapshot{Blocks: blocks})
 	srv := New(Options{
 		Engine:   e,
 		Upstream: &upstream.Pool{},

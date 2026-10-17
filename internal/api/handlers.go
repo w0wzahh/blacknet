@@ -374,7 +374,9 @@ func (s *Server) hClientCreate(w http.ResponseWriter, r *http.Request) {
 		jerr(w, 500, err.Error())
 		return
 	}
-	if err := s.d.DB.UpdateClient(r.Context(), id, body.Alias, body.Group); err != nil {
+	if err := s.d.DB.UpdateClient(r.Context(), id, database.ClientUpdate{
+		Alias: body.Alias, Group: body.Group,
+	}); err != nil {
 		jerr(w, 500, err.Error())
 		return
 	}
@@ -389,8 +391,11 @@ func (s *Server) hClientPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Alias *string `json:"alias"`
-		Group *string `json:"group"`
+		Alias          *string `json:"alias"`
+		Group          *string `json:"group"`
+		PolicyGroupID  *int64  `json:"policy_group_id"`
+		Classification *string `json:"classification"`
+		Notes          *string `json:"notes"`
 	}
 	if !decode(w, r, &body) {
 		return
@@ -404,16 +409,43 @@ func (s *Server) hClientPatch(w http.ResponseWriter, r *http.Request) {
 		jerr(w, 500, err.Error())
 		return
 	}
-	alias, grp := c.Alias, c.Group
+	u := database.ClientUpdate{
+		Alias: c.Alias, Group: c.Group, PolicyGroupID: c.PolicyGroupID,
+		Classification: c.Classification, Notes: c.Notes,
+	}
 	if body.Alias != nil {
-		alias = *body.Alias
+		u.Alias = *body.Alias
 	}
 	if body.Group != nil {
-		grp = *body.Group
+		u.Group = *body.Group
 	}
-	if err := s.d.DB.UpdateClient(r.Context(), id, alias, grp); err != nil {
+	if body.PolicyGroupID != nil {
+		if *body.PolicyGroupID != 0 {
+			if _, err := s.d.DB.GetGroup(r.Context(), *body.PolicyGroupID); err != nil {
+				jerr(w, 400, "unknown policy group")
+				return
+			}
+		}
+		u.PolicyGroupID = *body.PolicyGroupID
+	}
+	if body.Classification != nil {
+		switch *body.Classification {
+		case "unknown", "phone", "computer", "tv", "iot", "printer", "router", "server", "game-console":
+			u.Classification = *body.Classification
+		default:
+			jerr(w, 400, "unknown classification")
+			return
+		}
+	}
+	if body.Notes != nil {
+		u.Notes = *body.Notes
+	}
+	if err := s.d.DB.UpdateClient(r.Context(), id, u); err != nil {
 		jerr(w, 500, err.Error())
 		return
+	}
+	if body.PolicyGroupID != nil {
+		_ = s.d.App.ReloadPolicies(r.Context())
 	}
 	s.d.DB.Audit(r.Context(), "client.update", c.IP)
 	c, _ = s.d.DB.GetClient(r.Context(), id)
@@ -681,8 +713,12 @@ func (s *Server) hRuleCreate(w http.ResponseWriter, r *http.Request) {
 		Action   string `json:"action"`
 		Scope    string `json:"scope"`
 		ClientID int64  `json:"client_id"`
+		GroupID  int64  `json:"group_id"`
 		Comment  string `json:"comment"`
 		Enabled  *bool  `json:"enabled"`
+		// Temporary rule: either an RFC3339 deadline or a lifetime in minutes.
+		ExpiresAt        string `json:"expires_at"`
+		ExpiresInMinutes int    `json:"expires_in_minutes"`
 	}
 	if !decode(w, r, &body) {
 		return
@@ -692,7 +728,17 @@ func (s *Server) hRuleCreate(w http.ResponseWriter, r *http.Request) {
 		jerr(w, 400, errMsg)
 		return
 	}
-	rule := filtering.Rule{Domain: d, Action: a, Scope: sc, ClientID: body.ClientID, Comment: body.Comment, Enabled: true}
+	if body.ClientID != 0 && body.GroupID != 0 {
+		jerr(w, 400, "a rule is either client-scoped or group-scoped, not both")
+		return
+	}
+	exp, errMsg := parseExpiry(body.ExpiresAt, body.ExpiresInMinutes)
+	if errMsg != "" {
+		jerr(w, 400, errMsg)
+		return
+	}
+	rule := filtering.Rule{Domain: d, Action: a, Scope: sc, ClientID: body.ClientID,
+		GroupID: body.GroupID, Comment: body.Comment, Enabled: true, ExpiresAt: exp}
 	if body.Enabled != nil {
 		rule.Enabled = *body.Enabled
 	}
@@ -715,12 +761,14 @@ func (s *Server) hRulePatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Domain   *string `json:"domain"`
-		Action   *string `json:"action"`
-		Scope    *string `json:"scope"`
-		ClientID *int64  `json:"client_id"`
-		Comment  *string `json:"comment"`
-		Enabled  *bool   `json:"enabled"`
+		Domain    *string `json:"domain"`
+		Action    *string `json:"action"`
+		Scope     *string `json:"scope"`
+		ClientID  *int64  `json:"client_id"`
+		GroupID   *int64  `json:"group_id"`
+		Comment   *string `json:"comment"`
+		Enabled   *bool   `json:"enabled"`
+		ExpiresAt *string `json:"expires_at"` // RFC3339 or "" to make permanent
 	}
 	if !decode(w, r, &body) {
 		return
@@ -753,11 +801,28 @@ func (s *Server) hRulePatch(w http.ResponseWriter, r *http.Request) {
 	if body.ClientID != nil {
 		rule.ClientID = *body.ClientID
 	}
+	if body.GroupID != nil {
+		rule.GroupID = *body.GroupID
+	}
 	if body.Comment != nil {
 		rule.Comment = *body.Comment
 	}
 	if body.Enabled != nil {
 		rule.Enabled = *body.Enabled
+	}
+	if body.ExpiresAt != nil {
+		if *body.ExpiresAt == "" {
+			rule.ExpiresAt = ""
+		} else if exp, m := parseExpiry(*body.ExpiresAt, 0); m != "" {
+			jerr(w, 400, m)
+			return
+		} else {
+			rule.ExpiresAt = exp
+		}
+	}
+	if rule.ClientID != 0 && rule.GroupID != 0 {
+		jerr(w, 400, "a rule is either client-scoped or group-scoped, not both")
+		return
 	}
 	d, a, sc, errMsg := validateRuleInput(rule.Domain, string(rule.Action), string(rule.Scope))
 	if errMsg != "" {
@@ -800,6 +865,7 @@ func (s *Server) hRuleTest(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Domain   string `json:"domain"`
 		ClientID int64  `json:"client_id"`
+		GroupID  *int64 `json:"group_id"`
 	}
 	if !decode(w, r, &body) {
 		return
@@ -809,8 +875,49 @@ func (s *Server) hRuleTest(w http.ResponseWriter, r *http.Request) {
 		jerr(w, 400, "domain required")
 		return
 	}
-	dec := s.d.Engine.Decide(d, body.ClientID)
-	j(w, 200, dec)
+	sub := s.testSubject(r.Context(), body.ClientID, body.GroupID)
+	j(w, 200, s.d.Engine.Explain(d, sub))
+}
+
+// testSubject resolves the group for a simulator subject the same way the
+// DNS path does (client assignment → resolver), with an optional explicit
+// group override for what-if testing.
+func (s *Server) testSubject(ctx context.Context, clientID int64, groupOverride *int64) filtering.Subject {
+	sub := filtering.Subject{ClientID: clientID, Now: time.Now()}
+	if groupOverride != nil {
+		sub.GroupID = *groupOverride
+		return sub
+	}
+	if clientID != 0 {
+		if c, err := s.d.DB.GetClient(ctx, clientID); err == nil {
+			if ip, err2 := parseIP(c.IP); err2 == nil {
+				sub.GroupID = s.d.App.PolicyResolver().GroupFor(ip, clientID)
+			}
+		}
+	}
+	return sub
+}
+
+// parseExpiry normalizes a temporary-rule deadline. Pass an RFC3339 string
+// or a positive lifetime in minutes; both empty = permanent.
+func parseExpiry(at string, minutes int) (string, string) {
+	if minutes > 0 {
+		if minutes > 365*24*60 {
+			return "", "expires_in_minutes too large (max 1 year)"
+		}
+		return time.Now().Add(time.Duration(minutes) * time.Minute).UTC().Format(time.RFC3339), ""
+	}
+	if at == "" {
+		return "", ""
+	}
+	t, err := time.Parse(time.RFC3339, at)
+	if err != nil {
+		return "", "expires_at must be RFC3339 (e.g. 2025-01-31T20:00:00Z)"
+	}
+	if !t.After(time.Now()) {
+		return "", "expires_at is already in the past"
+	}
+	return t.UTC().Format(time.RFC3339), ""
 }
 
 func (s *Server) hRulesExport(w http.ResponseWriter, r *http.Request) {
@@ -1208,7 +1315,7 @@ func (s *Server) hDiagnostics(w http.ResponseWriter, r *http.Request) {
 	if domain == "" {
 		domain = "ads.example.com"
 	}
-	dec := s.d.Engine.Decide(domain, 0)
+	dec := s.d.Engine.Decide(domain, filtering.Subject{Now: time.Now()})
 	dbOK := s.d.DB.Ping(r.Context()) == nil
 	// is the caller a known client?
 	callerIP := clientIP(r)

@@ -57,3 +57,24 @@ outbound UDP/TCP 53 (and 853 for DoT) to servers *other than* Blacknet closes
 the common bypass. This cannot defeat DoH to arbitrary HTTPS endpoints — that
 requires blocking known DoH providers or deeper policy, with real trade-offs.
 See docs/dns-filtering.md for honest limits.
+
+### Managed enforcement
+
+The Enforcement page can drive supported routers directly. Today the adapter
+is **OpenWrt over SSH**: it configures dnsmasq's `dhcp_option` DNS
+advertisement, adds redirect rules for outbound DNS/DoT, and reloads the
+services. Every change is previewed first (the exact commands and affected
+settings), snapshotted before apply, and reversible with one-click rollback.
+
+Enforcement only marks protection as *enforced* when an apply operation has
+verified the change on the router. The dashboard honestly distinguishes three
+states:
+
+- **configured** — a router integration exists but nothing was applied, or
+  the router wasn't reachable,
+- **observed** — clients are actually querying Blacknet (traffic evidence),
+- **enforced** — a verified apply operation is in effect.
+
+Devices on routers without an adapter still need the manual firewall rules
+above; the dashboard will say "configured" rather than claiming protection it
+cannot verify.

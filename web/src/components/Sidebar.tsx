@@ -2,17 +2,25 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, ScrollText, MonitorSmartphone, ListFilter, ShieldCheck,
   ArrowUpCircle, Network, BarChart3, Settings, Info, Shield,
+  Users, CalendarClock, Radar, Globe, Router, HeartPulse, FileClock,
 } from 'lucide-react'
 
 const items = [
   { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
   { to: '/queries', label: 'Query Log', icon: ScrollText },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/clients', label: 'Clients', icon: MonitorSmartphone },
-  { to: '/blocklists', label: 'Blocklists', icon: ListFilter },
+  { to: '/devices', label: 'Discovery', icon: Radar },
+  { to: '/policies', label: 'Policies', icon: Users },
   { to: '/rules', label: 'Custom Rules', icon: ShieldCheck },
+  { to: '/blocklists', label: 'Blocklists', icon: ListFilter },
+  { to: '/schedules', label: 'Schedules', icon: CalendarClock },
+  { to: '/local-dns', label: 'Local DNS', icon: Globe },
   { to: '/upstreams', label: 'Upstream DNS', icon: ArrowUpCircle },
   { to: '/network', label: 'Network Setup', icon: Network },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/enforcement', label: 'Enforcement', icon: Router },
+  { to: '/health', label: 'Health', icon: HeartPulse },
+  { to: '/audit', label: 'Audit Log', icon: FileClock },
   { to: '/settings', label: 'Settings', icon: Settings },
   { to: '/about', label: 'About', icon: Info },
 ]

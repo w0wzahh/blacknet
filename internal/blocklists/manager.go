@@ -141,15 +141,20 @@ func checkIP(ip netip.Addr) error {
 
 // RefreshResult summarises a refresh attempt.
 type RefreshResult struct {
-	ListID    int64  `json:"list_id"`
-	Changed   bool   `json:"changed"`
-	RuleCount int    `json:"rule_count"`
-	Skipped   int    `json:"skipped_lines"`
-	Message   string `json:"message"`
+	ListID     int64    `json:"list_id"`
+	Changed    bool     `json:"changed"`
+	RuleCount  int      `json:"rule_count"`
+	Skipped    int      `json:"skipped_lines"`
+	Duplicates int      `json:"duplicates"`
+	Bytes      int64    `json:"bytes"`
+	Hash       string   `json:"hash"`
+	Warnings   []string `json:"warnings,omitempty"`
+	Message    string   `json:"message"`
 }
 
 // Refresh downloads and reparses a list atomically. A failed download or an
-// empty/malformed result never replaces the last known-good data.
+// empty/malformed result never replaces the last known-good data. Every
+// attempt is appended to blocklist_history.
 func (m *Manager) Refresh(ctx context.Context, id int64) (*RefreshResult, error) {
 	m.mu.Lock()
 	if m.running[id] {
@@ -172,8 +177,24 @@ func (m *Manager) Refresh(ctx context.Context, id int64) (*RefreshResult, error)
 	if err != nil {
 		// Record failure but keep existing rules.
 		_ = m.db.UpdateBlocklistState(ctx, id, err.Error(), "", "", "", nil)
+		_ = m.db.RecordBlocklistHistory(ctx, id, database.BlocklistHistoryEntry{
+			Status: "failed", Error: err.Error(),
+		})
 		return nil, err
 	}
+	status := "ok"
+	if !res.Changed {
+		status = "unchanged"
+	}
+	errStr := ""
+	if len(res.Warnings) > 0 {
+		errStr = strings.Join(res.Warnings, "; ")
+	}
+	_ = m.db.RecordBlocklistHistory(ctx, id, database.BlocklistHistoryEntry{
+		Status: status, RuleCount: int64(res.RuleCount), Bytes: res.Bytes,
+		Malformed: int64(res.Skipped), Duplicates: int64(res.Duplicates),
+		Hash: res.Hash, Error: errStr,
+	})
 	if m.onRefresh != nil {
 		m.onRefresh()
 	}
@@ -233,6 +254,26 @@ func (m *Manager) refreshOne(ctx context.Context, bl *database.Blocklist) (*Refr
 	if len(parsed.Blocks) == 0 {
 		return nil, ErrEmpty
 	}
+	// Quality warnings — surfaced in history and the API, never fatal.
+	var warnings []string
+	if parsed.Total > 0 && parsed.Skipped > parsed.Total/4 {
+		warnings = append(warnings,
+			fmt.Sprintf("%d/%d lines could not be parsed — check this is a domain list", parsed.Skipped, parsed.Total))
+	}
+	if bl.RuleCount > 0 {
+		newCount := int64(len(parsed.Blocks))
+		if newCount < bl.RuleCount/2 {
+			warnings = append(warnings,
+				fmt.Sprintf("rule count dropped sharply: %d → %d", bl.RuleCount, newCount))
+		} else if newCount > bl.RuleCount*3 {
+			warnings = append(warnings,
+				fmt.Sprintf("rule count grew sharply: %d → %d", bl.RuleCount, newCount))
+		}
+	}
+	if parsed.Duplicates > len(parsed.Blocks)/2 {
+		warnings = append(warnings,
+			fmt.Sprintf("%d duplicate entries — list quality is low", parsed.Duplicates))
+	}
 	domains := &database.BlocklistDomains{Blocks: parsed.Blocks, Allows: parsed.Allows}
 	etag := resp.Header.Get("ETag")
 	lm := resp.Header.Get("Last-Modified")
@@ -242,7 +283,9 @@ func (m *Manager) refreshOne(ctx context.Context, bl *database.Blocklist) (*Refr
 	return &RefreshResult{
 		ListID: bl.ID, Changed: true,
 		RuleCount: len(parsed.Blocks), Skipped: parsed.Skipped,
-		Message: fmt.Sprintf("imported %d domains", len(parsed.Blocks)),
+		Duplicates: parsed.Duplicates, Bytes: int64(len(body)), Hash: hash,
+		Warnings: warnings,
+		Message:  fmt.Sprintf("imported %d domains", len(parsed.Blocks)),
 	}, nil
 }
 

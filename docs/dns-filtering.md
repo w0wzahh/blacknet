@@ -46,3 +46,26 @@ A device "not being filtered" usually means one of:
 The dashboard's Network Setup page runs a live diagnostic that checks the
 service, the rule engine, upstream health, and whether your current device is
 a recognized client.
+
+## Local DNS records
+
+The Local DNS page serves authoritative answers from Blacknet itself — A/AAAA
+forward records, PTR reverse records, CNAMEs, TXT, and `*.name` wildcards.
+Local records resolve *before* filtering rules, so an internal name can never
+be blocked by accident. Conflicting records (e.g. a CNAME beside other types
+on the same name) are flagged with warnings rather than silently broken.
+`POST /api/v1/local-dns/test` resolves a name against the table without
+sending a live query.
+
+## DNSSEC mode
+
+Settings → DNSSEC mode asks upstreams to validate by setting the DO bit on
+forwarded queries and records the result per query: `authenticated` when the
+upstream returned the AD bit, `unsigned` otherwise. Blacknet reports the
+outcome in the query log but does not itself validate signatures — validation
+is delegated to your upstream resolver.
+
+## Per-device filtering
+
+Policy groups, per-client rules, group-scoped blocklists and schedules are
+covered in docs/policy-groups.md.

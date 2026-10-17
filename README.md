@@ -16,6 +16,21 @@ operational model.
 - Live query log (SSE), per-client statistics, custom allow/block rules with
   deterministic precedence, blocklist imports with ETag/hash refresh,
   backups, and an honest explanation of what DNS filtering can't do.
+- **Policy groups**: assign devices by client, IP or CIDR; per-group rules,
+  blocklist restrictions, upstream overrides and schedules.
+- **Local DNS**: A/AAAA/CNAME/TXT/PTR records, wildcards and PTR zones,
+  resolved before filtering so internal names are never blocked.
+- **Rule intelligence**: decision traces ("why was this blocked?"), batch
+  testing, conflict detection, temporary rules that expire automatically.
+- **Schedules**: recurring windows that suspend filtering, force it on, or
+  enable extra blocklists for a group or client.
+- **Discovery & inventory**: passive device detection (neighbor table, DHCP
+  leases), identity bindings, new-device events.
+- **Enforcement**: managed router integration (OpenWrt/SSH) with change
+  preview, verified apply, and one-click rollback — the dashboard reports
+  configured vs observed vs enforced protection honestly.
+- **Operations**: DNSSEC delegation to upstreams, latency/error analytics,
+  health history, audit log, diagnostic bundle export.
 
 ## Quick start
 
@@ -62,9 +77,9 @@ walkthrough including IPv6 caveats and rollback: **docs/router-setup.md**.
 ## Documentation
 
 - `docs/installation.md` — Windows/Linux/Docker installs
-- `docs/router-setup.md` — DHCP/DNS router configuration + vendor notes
-- `docs/dns-filtering.md` — capabilities and honest limits (same-domain ads,
-  encrypted DNS bypass, etc.)
+- `docs/router-setup.md` — DHCP/DNS router configuration + managed enforcement
+- `docs/policy-groups.md` — groups, assignments, scoped rules, schedules
+- `docs/dns-filtering.md` — capabilities, local DNS, DNSSEC, and honest limits
 - `docs/security.md` — auth, CSRF, SSRF policy, hardening checklist
 - `docs/troubleshooting.md` — port conflicts, "nothing is blocked", etc.
 - `docs/architecture.md` — internals, precedence rules, failure modes

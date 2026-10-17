@@ -34,6 +34,11 @@ export interface Settings {
   health_probe_domain: string
   health_probe_interval_seconds: number
   setup_completed: boolean
+  query_logging_enabled: boolean
+  discovery_enabled: boolean
+  discovery_interval_seconds: number
+  dnssec_upstream: boolean
+  audit_retention_days: number
 }
 
 export interface QueryRow {
@@ -58,6 +63,11 @@ export interface Client {
   ip: string
   alias: string
   group: string
+  policy_group_id: number
+  policy_group?: string
+  classification: string
+  identity_source: string
+  notes: string
   first_seen: string
   last_seen: string
   total_queries: number
@@ -83,8 +93,193 @@ export interface Rule {
   action: 'allow' | 'block'
   scope: 'exact' | 'tree'
   client_id: number
+  group_id: number
   comment: string
   enabled: boolean
+  expires_at?: string
+  list_id?: number
+}
+
+// ---------- V2 ----------
+
+export interface PolicyGroup {
+  id: number
+  name: string
+  description: string
+  enabled: boolean
+  upstream_id: number
+  created_at: string
+  updated_at: string
+  client_count?: number
+  list_ids?: number[]
+}
+
+export interface Assignment {
+  id: number
+  kind: 'client' | 'ip' | 'cidr' | string
+  value: string
+  group_id: number
+  group_name?: string
+  created_at: string
+}
+
+export interface Subject {
+  client_id: number
+  group_id: number
+  now: string
+}
+
+export interface Step {
+  stage: string
+  matched: boolean
+  detail: string
+  rule?: Rule
+  list_id?: number
+}
+
+export interface Explanation {
+  decision: Decision
+  subject: Subject
+  active_schedules?: string[]
+  protection_off: boolean
+  steps: Step[]
+}
+
+export interface RuleConflict {
+  rule_id: number
+  domain: string
+  relation: 'conflict' | 'shadowed' | 'redundant' | 'covers' | string
+  detail: string
+}
+
+export interface InspectResult {
+  domain: string
+  subject: Subject
+  explanation: Explanation
+  matched_rules: Rule[]
+  in_blocklists: { list_id: number; name: string; matched_domain: string }[]
+  exceptions: { list_id: number; name: string; matched_domain: string }[]
+}
+
+export interface BatchResult {
+  subject: Subject
+  results: { domain: string; blocked: boolean; reason: string; trace: Step[] }[]
+}
+
+export interface Schedule {
+  id: number
+  name: string
+  description: string
+  enabled: boolean
+  tz: string
+  days_mask: number
+  start_min: number
+  end_min: number
+  date_from: string
+  date_to: string
+  target_kind: 'protection' | 'group' | string
+  target_id: number
+  effect: 'allow_all' | 'block_all' | 'extra_lists' | string
+  list_ids?: number[]
+  created_at: string
+  updated_at: string
+}
+
+export interface SchedulePreview {
+  schedule: Schedule
+  at: string
+  active: boolean
+  transitions: { at: string; to_active: boolean }[]
+}
+
+export interface LocalRecord {
+  id: number
+  name: string
+  type: 'A' | 'AAAA' | 'CNAME' | 'TXT' | 'PTR' | string
+  value: string
+  ttl: number
+  enabled: boolean
+  comment: string
+  created_at: string
+  updated_at: string
+}
+
+export interface DiscoveryEvent {
+  id: number
+  kind: string
+  value: string
+  detail: string
+  first_seen: string
+  last_seen: string
+  count: number
+  notified: boolean
+}
+
+export interface Identity {
+  id: number
+  client_id: number
+  kind: string
+  value: string
+  created_at: string
+}
+
+export interface ListHistoryEntry {
+  id: number
+  ts: string
+  status: 'ok' | 'unchanged' | 'failed' | string
+  rule_count: number
+  bytes: number
+  malformed: number
+  duplicates: number
+  hash: string
+  error?: string
+}
+
+export interface UpstreamHealthEntry {
+  ts: string
+  ok: boolean
+  rtt_ms: number
+  error?: string
+}
+
+export interface AuditEntry {
+  id: number
+  ts: string
+  actor: string
+  action: string
+  resource: string
+  detail: string
+  result: string
+}
+
+export interface EnforcementOp {
+  id: number
+  ts: string
+  integration: string
+  action: string
+  status: string
+  preview: string
+  result: string
+  actor: string
+}
+
+export interface Integration {
+  id: string
+  name: string
+  available: boolean
+  reason?: string
+  verified: boolean
+  last_error?: string
+  notes?: string
+}
+
+export interface EnforcementPlan {
+  integration: string
+  action: string
+  summary: string
+  commands: string[]
+  warnings: string[]
+  requires_confirm?: string[]
 }
 
 export interface Upstream {

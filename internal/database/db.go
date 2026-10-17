@@ -133,6 +133,142 @@ var migrations = []string{
 		hostname TEXT NOT NULL DEFAULT '',
 		expires_at TEXT NOT NULL
 	)`,
+	// ---------- V2 ----------
+	// clients: policy group assignment + identity metadata.
+	`ALTER TABLE clients ADD COLUMN policy_group_id INTEGER NOT NULL DEFAULT 0`,
+	`ALTER TABLE clients ADD COLUMN classification TEXT NOT NULL DEFAULT 'unknown'`,
+	`ALTER TABLE clients ADD COLUMN identity_source TEXT NOT NULL DEFAULT 'dns-observation'`,
+	`ALTER TABLE clients ADD COLUMN notes TEXT NOT NULL DEFAULT ''`,
+	// queries: resolved policy group at decision time + upstream latency split.
+	`ALTER TABLE queries ADD COLUMN group_id INTEGER NOT NULL DEFAULT 0`,
+	`ALTER TABLE queries ADD COLUMN upstream_ms REAL NOT NULL DEFAULT 0`,
+	`ALTER TABLE queries ADD COLUMN dnssec TEXT NOT NULL DEFAULT ''`,
+	`CREATE INDEX IF NOT EXISTS idx_queries_group ON queries(group_id)`,
+	// rules: group scope + temporary expiration.
+	`ALTER TABLE rules ADD COLUMN group_id INTEGER NOT NULL DEFAULT 0`,
+	`ALTER TABLE rules ADD COLUMN expires_at TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE rules ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''`,
+	// Widen the dedup key: identical rules may legitimately exist at
+	// different scope tiers (global / group / client).
+	`DROP INDEX IF EXISTS idx_rules_unique`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_rules_unique ON rules(domain, action, scope, client_id, group_id)`,
+	// audit: structured fields (older rows stay valid with defaults).
+	`ALTER TABLE audit ADD COLUMN actor TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE audit ADD COLUMN resource TEXT NOT NULL DEFAULT ''`,
+	`ALTER TABLE audit ADD COLUMN result TEXT NOT NULL DEFAULT 'ok'`,
+	`CREATE TABLE IF NOT EXISTS policy_groups (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		description TEXT NOT NULL DEFAULT '',
+		enabled INTEGER NOT NULL DEFAULT 1,
+		upstream_id INTEGER NOT NULL DEFAULT 0,
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	)`,
+	// Maps a client identifier to a policy group. kind: 'client' (stable id),
+	// 'ip' (single address), 'cidr' (range). Most specific wins.
+	`CREATE TABLE IF NOT EXISTS policy_assignments (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		kind TEXT NOT NULL,
+		value TEXT NOT NULL,
+		group_id INTEGER NOT NULL REFERENCES policy_groups(id) ON DELETE CASCADE,
+		created_at TEXT NOT NULL,
+		UNIQUE(kind, value)
+	)`,
+	// Restricts a blocklist to groups; no rows = global list.
+	`CREATE TABLE IF NOT EXISTS group_blocklists (
+		group_id INTEGER NOT NULL REFERENCES policy_groups(id) ON DELETE CASCADE,
+		blocklist_id INTEGER NOT NULL REFERENCES blocklists(id) ON DELETE CASCADE,
+		PRIMARY KEY (group_id, blocklist_id)
+	)`,
+	`CREATE TABLE IF NOT EXISTS discovery_events (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		kind TEXT NOT NULL,
+		value TEXT NOT NULL,
+		detail TEXT NOT NULL DEFAULT '',
+		first_seen TEXT NOT NULL,
+		last_seen TEXT NOT NULL,
+		count INTEGER NOT NULL DEFAULT 1,
+		notified INTEGER NOT NULL DEFAULT 0,
+		UNIQUE(kind, value)
+	)`,
+	`CREATE TABLE IF NOT EXISTS local_dns_records (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		type TEXT NOT NULL,
+		value TEXT NOT NULL,
+		ttl INTEGER NOT NULL DEFAULT 300,
+		enabled INTEGER NOT NULL DEFAULT 1,
+		comment TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_ldr_name ON local_dns_records(name)`,
+	`CREATE TABLE IF NOT EXISTS schedules (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		description TEXT NOT NULL DEFAULT '',
+		enabled INTEGER NOT NULL DEFAULT 1,
+		tz TEXT NOT NULL DEFAULT 'UTC',
+		days_mask INTEGER NOT NULL DEFAULT 127,
+		start_min INTEGER NOT NULL DEFAULT 0,
+		end_min INTEGER NOT NULL DEFAULT 1439,
+		date_from TEXT NOT NULL DEFAULT '',
+		date_to TEXT NOT NULL DEFAULT '',
+		target_kind TEXT NOT NULL DEFAULT 'group',
+		target_id INTEGER NOT NULL DEFAULT 0,
+		effect TEXT NOT NULL DEFAULT 'protection_off',
+		effect_data TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	)`,
+	`CREATE TABLE IF NOT EXISTS upstream_health (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		upstream_id INTEGER NOT NULL,
+		ts TEXT NOT NULL,
+		ok INTEGER NOT NULL,
+		rtt_ms REAL NOT NULL,
+		error TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_uh_ts ON upstream_health(upstream_id, ts)`,
+	`CREATE TABLE IF NOT EXISTS blocklist_history (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		blocklist_id INTEGER NOT NULL,
+		ts TEXT NOT NULL,
+		status TEXT NOT NULL,
+		rule_count INTEGER NOT NULL DEFAULT 0,
+		bytes INTEGER NOT NULL DEFAULT 0,
+		malformed INTEGER NOT NULL DEFAULT 0,
+		duplicates INTEGER NOT NULL DEFAULT 0,
+		hash TEXT NOT NULL DEFAULT '',
+		error TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_blh_ts ON blocklist_history(blocklist_id, ts)`,
+	`CREATE TABLE IF NOT EXISTS enforcement_operations (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		ts TEXT NOT NULL,
+		integration TEXT NOT NULL,
+		action TEXT NOT NULL,
+		status TEXT NOT NULL,
+		preview TEXT NOT NULL DEFAULT '',
+		result TEXT NOT NULL DEFAULT '',
+		actor TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE TABLE IF NOT EXISTS enforcement_backups (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		operation_id INTEGER NOT NULL REFERENCES enforcement_operations(id) ON DELETE CASCADE,
+		ts TEXT NOT NULL,
+		content TEXT NOT NULL
+	)`,
+	// Identify a client by more than its current IP (e.g. DHCP MAC binding).
+	`CREATE TABLE IF NOT EXISTS client_identities (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+		kind TEXT NOT NULL,
+		value TEXT NOT NULL,
+		created_at TEXT NOT NULL,
+		UNIQUE(kind, value)
+	)`,
 }
 
 func (db *DB) migrate() error {

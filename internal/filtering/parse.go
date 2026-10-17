@@ -20,6 +20,8 @@ type ParseResult struct {
 	Allows map[string]struct{}
 	// Skipped counts lines that were comments, invalid, or unsupported.
 	Skipped int
+	// Duplicates counts entries that were already in the set.
+	Duplicates int
 	// Total counts non-empty lines examined.
 	Total int
 	// Truncated is true when the entry cap was hit.
@@ -72,6 +74,9 @@ func parseLine(line string, res *ParseResult) {
 	// Adblock exception: @@||domain^
 	if strings.HasPrefix(line, "@@") {
 		if d, ok := parseAdblock(strings.TrimPrefix(line, "@@")); ok {
+			if _, dup := res.Allows[d]; dup {
+				res.Duplicates++
+			}
 			res.Allows[d] = struct{}{}
 			return
 		}
@@ -82,6 +87,9 @@ func parseLine(line string, res *ParseResult) {
 	// Adblock domain rule: ||domain^ optionally followed by $options.
 	if strings.HasPrefix(line, "||") {
 		if d, ok := parseAdblock(line); ok {
+			if _, dup := res.Blocks[d]; dup {
+				res.Duplicates++
+			}
 			res.Blocks[d] = struct{}{}
 			return
 		}
@@ -121,6 +129,9 @@ func parseLine(line string, res *ParseResult) {
 		d = Normalize(strings.TrimPrefix(d, "*."))
 		if !IsValidDomain(d) || isLocalOrIP(d) {
 			continue
+		}
+		if _, dup := res.Blocks[d]; dup {
+			res.Duplicates++
 		}
 		res.Blocks[d] = struct{}{}
 		added = true

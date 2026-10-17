@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/netip"
@@ -20,6 +21,8 @@ type QueryRow struct {
 	Time      string  `json:"time"`
 	ClientIP  string  `json:"client_ip"`
 	ClientID  int64   `json:"client_id"`
+	GroupID   int64   `json:"group_id"`
+	GroupName string  `json:"group_name,omitempty"`
 	Alias     string  `json:"alias,omitempty"`
 	Domain    string  `json:"domain"`
 	QType     uint16  `json:"qtype"`
@@ -30,14 +33,18 @@ type QueryRow struct {
 	RCodeName string  `json:"rcode_name"`
 	LatencyMs float64 `json:"latency_ms"`
 	Cached    bool    `json:"cached"`
+	DNSSEC    string  `json:"dnssec,omitempty"`
 }
 
 // QueryFilter selects rows in ListQueries.
 type QueryFilter struct {
 	Domain   string // substring match
 	ClientIP string // exact
+	ClientID int64  // 0 = any
+	GroupID  int64  // 0 = any
 	Blocked  *bool
 	QType    *uint16
+	Reason   string // substring match
 	Since    time.Time
 	Until    time.Time
 	Limit    int
@@ -55,6 +62,18 @@ func (db *DB) ListQueries(ctx context.Context, f QueryFilter) ([]QueryRow, int64
 	if f.ClientIP != "" {
 		where = append(where, `q.client_ip = ?`)
 		args = append(args, f.ClientIP)
+	}
+	if f.ClientID != 0 {
+		where = append(where, `q.client_id = ?`)
+		args = append(args, f.ClientID)
+	}
+	if f.GroupID != 0 {
+		where = append(where, `q.group_id = ?`)
+		args = append(args, f.GroupID)
+	}
+	if f.Reason != "" {
+		where = append(where, `q.reason LIKE ?`)
+		args = append(args, "%"+f.Reason+"%")
 	}
 	if f.Blocked != nil {
 		where = append(where, `q.blocked = ?`)
@@ -86,9 +105,12 @@ func (db *DB) ListQueries(ctx context.Context, f QueryFilter) ([]QueryRow, int64
 		limit = 100
 	}
 	rows, err := db.SQL.QueryContext(ctx,
-		`SELECT q.id,q.ts,q.client_ip,q.client_id,COALESCE(c.alias,''),q.domain,q.qtype,
-		        q.blocked,q.reason,q.rcode,q.latency_ms,q.cached
-		 FROM queries q LEFT JOIN clients c ON c.id=q.client_id`+w+
+		`SELECT q.id,q.ts,q.client_ip,q.client_id,q.group_id,
+		        COALESCE(c.alias,''),COALESCE(g.name,''),q.domain,q.qtype,
+		        q.blocked,q.reason,q.rcode,q.latency_ms,q.cached,q.dnssec
+		 FROM queries q
+		 LEFT JOIN clients c ON c.id=q.client_id
+		 LEFT JOIN policy_groups g ON g.id=q.group_id`+w+
 			` ORDER BY q.id DESC LIMIT ? OFFSET ?`,
 		append(args, limit, f.Offset)...)
 	if err != nil {
@@ -100,8 +122,9 @@ func (db *DB) ListQueries(ctx context.Context, f QueryFilter) ([]QueryRow, int64
 		var r QueryRow
 		var ts int64
 		var blocked, cached int
-		if err := rows.Scan(&r.ID, &ts, &r.ClientIP, &r.ClientID, &r.Alias, &r.Domain,
-			&r.QType, &blocked, &r.Reason, &r.RCode, &r.LatencyMs, &cached); err != nil {
+		if err := rows.Scan(&r.ID, &ts, &r.ClientIP, &r.ClientID, &r.GroupID,
+			&r.Alias, &r.GroupName, &r.Domain, &r.QType, &blocked, &r.Reason,
+			&r.RCode, &r.LatencyMs, &cached, &r.DNSSEC); err != nil {
 			return nil, 0, err
 		}
 		r.Time = time.UnixMilli(ts).UTC().Format(time.RFC3339)
@@ -273,6 +296,14 @@ type QueryLogger struct {
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
 
+	// enabled gates row insertion only — client inventory counters and SSE
+	// still run so devices stay tracked when logging is off.
+	enabled atomic.Bool
+
+	// OnNewClient fires once when an unknown source IP is first observed;
+	// used by the discovery inventory. Must be fast and non-blocking.
+	OnNewClient func(ip string)
+
 	clientsMu sync.Mutex
 	known     map[netip.Addr]int64 // ip -> client id
 	knownMiss map[netip.Addr]time.Time
@@ -283,13 +314,22 @@ func NewQueryLogger(db *DB, buf int) *QueryLogger {
 	if buf <= 0 {
 		buf = 8192
 	}
-	return &QueryLogger{
+	q := &QueryLogger{
 		db:        db,
 		ch:        make(chan dnsserver.QueryEvent, buf),
 		known:     map[netip.Addr]int64{},
 		knownMiss: map[netip.Addr]time.Time{},
 	}
+	q.enabled.Store(true)
+	return q
 }
+
+// SetEnabled toggles persistence of query rows (filtering and client
+// inventory are unaffected).
+func (q *QueryLogger) SetEnabled(on bool) { q.enabled.Store(on) }
+
+// Enabled reports whether query rows are being persisted.
+func (q *QueryLogger) Enabled() bool { return q.enabled.Load() }
 
 // Submit offers an event for persistence; drops (and counts) when the buffer
 // is full so DNS resolution never blocks on the database.
@@ -365,16 +405,20 @@ func (q *QueryLogger) insertBatch(ctx context.Context, evs []dnsserver.QueryEven
 	}
 	defer tx.Rollback()
 	stmt, err := tx.PrepareContext(ctx,
-		`INSERT INTO queries(ts,client_ip,client_id,domain,qtype,blocked,reason,rcode,latency_ms,cached)
-		 VALUES(?,?,?,?,?,?,?,?,?,?)`)
+		`INSERT INTO queries(ts,client_ip,client_id,group_id,domain,qtype,blocked,reason,rcode,latency_ms,upstream_ms,cached,dnssec)
+		 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
+	logRows := q.enabled.Load()
 	for _, ev := range evs {
-		if _, err := stmt.ExecContext(ctx, ev.Time.UnixMilli(), ev.ClientIP, ev.ClientID,
-			ev.Domain, ev.QType, boolInt(ev.Blocked), ev.Reason, ev.RCode, ev.LatencyMs, boolInt(ev.Cached)); err != nil {
-			return err
+		if logRows {
+			if _, err := stmt.ExecContext(ctx, ev.Time.UnixMilli(), ev.ClientIP, ev.ClientID, ev.GroupID,
+				ev.Domain, ev.QType, boolInt(ev.Blocked), ev.Reason, ev.RCode, ev.LatencyMs,
+				ev.UpstreamMs, boolInt(ev.Cached), ev.DNSSEC); err != nil {
+				return err
+			}
 		}
 		if err := q.bumpClient(ctx, tx, ev); err != nil {
 			return err
@@ -410,9 +454,15 @@ func (q *QueryLogger) LookupClient(ip netip.Addr) int64 {
 	}
 	id, err := q.db.ClientIDByIP(context.Background(), ip)
 	if err != nil || id == 0 {
-		// Create the row so the client list fills in.
+		// Create the row so the client list fills in; a nil-error create of a
+		// previously unknown IP is a discovery event.
+		isNew := errors.Is(err, sql.ErrNoRows) || id == 0
 		if _, err2 := q.db.UpsertClientSeen(context.Background(), ip.String(), false); err2 == nil {
-			id, _ = q.db.ClientIDByIP(context.Background(), ip)
+			newID, _ := q.db.ClientIDByIP(context.Background(), ip)
+			if isNew && newID != 0 && q.OnNewClient != nil {
+				q.OnNewClient(ip.String())
+			}
+			id = newID
 		}
 	}
 	if id == 0 {
