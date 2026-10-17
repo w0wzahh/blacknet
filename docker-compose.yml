@@ -4,13 +4,19 @@ services:
     image: blacknet:1.0.0
     container_name: blacknet
     restart: unless-stopped
-    ports:
-      # DNS to the LAN; the dashboard on 8080.
-      - "53:53/udp"
-      - "53:53/tcp"
-      - "8080:8080/tcp"
+    # Host networking is required for the DHCP server: broadcast DHCP
+    # (UDP 67) cannot traverse Docker's NAT port mapping. On Linux this
+    # puts DNS (53) and the dashboard (8080) straight on the LAN.
+    # If you only want DNS filtering (router still does DHCP), comment
+    # network_mode out and use the port mappings below instead.
+    network_mode: host
+    #ports:
+    #  - "53:53/udp"
+    #  - "53:53/tcp"
+    #  - "8080:8080/tcp"
     volumes:
       - blacknet-data:/data
+      # Copy config.example.yaml to config.docker.yaml and adjust for your LAN.
       - ./config.docker.yaml:/app/config.yaml:ro
     environment:
       - TZ=UTC
