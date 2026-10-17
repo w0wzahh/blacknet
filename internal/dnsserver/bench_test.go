@@ -8,9 +8,9 @@ import (
 
 	"github.com/miekg/dns"
 
-	"github.com/emre/blacknet/internal/cache"
-	"github.com/emre/blacknet/internal/filtering"
-	"github.com/emre/blacknet/internal/upstream"
+	"github.com/w0wzahh/blacknet/internal/cache"
+	"github.com/w0wzahh/blacknet/internal/filtering"
+	"github.com/w0wzahh/blacknet/internal/upstream"
 )
 
 // BenchmarkEndToEnd measures full request handling against a mock upstream:

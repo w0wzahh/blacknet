@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/emre/blacknet/internal/dnsserver"
+	"github.com/w0wzahh/blacknet/internal/dnsserver"
 )
 
 // QueryRow is one stored query-log entry.

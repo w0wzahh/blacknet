@@ -10,21 +10,22 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/emre/blacknet/internal/auth"
-	"github.com/emre/blacknet/internal/blocklists"
-	"github.com/emre/blacknet/internal/cache"
-	"github.com/emre/blacknet/internal/config"
-	"github.com/emre/blacknet/internal/database"
-	"github.com/emre/blacknet/internal/dhcp"
-	"github.com/emre/blacknet/internal/dnsserver"
-	"github.com/emre/blacknet/internal/events"
-	"github.com/emre/blacknet/internal/filtering"
-	"github.com/emre/blacknet/internal/settings"
-	"github.com/emre/blacknet/internal/upstream"
+	"github.com/w0wzahh/blacknet/internal/auth"
+	"github.com/w0wzahh/blacknet/internal/blocklists"
+	"github.com/w0wzahh/blacknet/internal/cache"
+	"github.com/w0wzahh/blacknet/internal/config"
+	"github.com/w0wzahh/blacknet/internal/database"
+	"github.com/w0wzahh/blacknet/internal/dhcp"
+	"github.com/w0wzahh/blacknet/internal/dnsserver"
+	"github.com/w0wzahh/blacknet/internal/events"
+	"github.com/w0wzahh/blacknet/internal/filtering"
+	"github.com/w0wzahh/blacknet/internal/settings"
+	"github.com/w0wzahh/blacknet/internal/upstream"
 )
 
 // Reloader is implemented by the application core; handlers call it to apply
@@ -209,9 +210,25 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			}
 			if origin := r.Header.Get("Origin"); origin != "" {
 				u, err := url.Parse(origin)
-				if err != nil || u.Host != r.Host {
+				if err != nil {
 					jerr(w, http.StatusForbidden, "origin mismatch")
 					return
+				}
+				// Compare hostnames only: ports legitimately differ when the
+				// dashboard sits behind a reverse proxy or local preview proxy.
+				ohost := u.Hostname()
+				rhost := r.Host
+				if h, _, herr := net.SplitHostPort(rhost); herr == nil {
+					rhost = h
+				}
+				if ohost != rhost {
+					// Loopback-to-loopback (e.g. local preview proxies) is fine:
+					// the X-Requested-With requirement above already blocks
+					// real cross-origin mutations.
+					if !(isLoopbackHost(ohost) && isLoopbackHost(rhost)) {
+						jerr(w, http.StatusForbidden, "origin mismatch")
+						return
+					}
 				}
 			}
 		}
@@ -225,6 +242,14 @@ func isMutation(m string) bool {
 
 func bearerAuth(r *http.Request) bool {
 	return strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ")
+}
+
+func isLoopbackHost(h string) bool {
+	if h == "localhost" {
+		return true
+	}
+	ip, err := netip.ParseAddr(h)
+	return err == nil && ip.IsLoopback()
 }
 
 // authenticated reports whether the request carries a valid credential.

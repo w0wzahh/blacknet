@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/emre/blacknet/internal/dhcp"
+	"github.com/w0wzahh/blacknet/internal/dhcp"
 )
 
 // hDHCPGet returns config, running state and active leases.

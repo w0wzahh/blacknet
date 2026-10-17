@@ -14,16 +14,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/emre/blacknet/internal/blocklists"
-	"github.com/emre/blacknet/internal/cache"
-	"github.com/emre/blacknet/internal/config"
-	"github.com/emre/blacknet/internal/database"
-	"github.com/emre/blacknet/internal/dhcp"
-	"github.com/emre/blacknet/internal/dnsserver"
-	"github.com/emre/blacknet/internal/events"
-	"github.com/emre/blacknet/internal/filtering"
-	"github.com/emre/blacknet/internal/settings"
-	"github.com/emre/blacknet/internal/upstream"
+	"github.com/w0wzahh/blacknet/internal/blocklists"
+	"github.com/w0wzahh/blacknet/internal/cache"
+	"github.com/w0wzahh/blacknet/internal/config"
+	"github.com/w0wzahh/blacknet/internal/database"
+	"github.com/w0wzahh/blacknet/internal/dhcp"
+	"github.com/w0wzahh/blacknet/internal/dnsserver"
+	"github.com/w0wzahh/blacknet/internal/events"
+	"github.com/w0wzahh/blacknet/internal/filtering"
+	"github.com/w0wzahh/blacknet/internal/settings"
+	"github.com/w0wzahh/blacknet/internal/upstream"
 )
 
 // Version is set by main at build time.

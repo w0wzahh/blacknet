@@ -19,8 +19,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/emre/blacknet/internal/database"
-	"github.com/emre/blacknet/internal/filtering"
+	"github.com/w0wzahh/blacknet/internal/database"
+	"github.com/w0wzahh/blacknet/internal/filtering"
 )
 
 const (

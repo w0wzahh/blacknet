@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/emre/blacknet/internal/database"
-	"github.com/emre/blacknet/internal/filtering"
-	"github.com/emre/blacknet/internal/network"
-	"github.com/emre/blacknet/internal/upstream"
+	"github.com/w0wzahh/blacknet/internal/database"
+	"github.com/w0wzahh/blacknet/internal/filtering"
+	"github.com/w0wzahh/blacknet/internal/network"
+	"github.com/w0wzahh/blacknet/internal/upstream"
 )
 
 // ---------- auth / setup ----------

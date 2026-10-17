@@ -14,7 +14,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/emre/blacknet/internal/database"
+	"github.com/w0wzahh/blacknet/internal/database"
 )
 
 const manifestName = "manifest.json"

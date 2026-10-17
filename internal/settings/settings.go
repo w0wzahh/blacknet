@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/emre/blacknet/internal/database"
+	"github.com/w0wzahh/blacknet/internal/database"
 )
 
 // Settings are runtime-editable application settings persisted in SQLite.

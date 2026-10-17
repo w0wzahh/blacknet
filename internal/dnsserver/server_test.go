@@ -11,9 +11,9 @@ import (
 
 	"github.com/miekg/dns"
 
-	"github.com/emre/blacknet/internal/cache"
-	"github.com/emre/blacknet/internal/filtering"
-	"github.com/emre/blacknet/internal/upstream"
+	"github.com/w0wzahh/blacknet/internal/cache"
+	"github.com/w0wzahh/blacknet/internal/filtering"
+	"github.com/w0wzahh/blacknet/internal/upstream"
 )
 
 // startMockUpstream starts a real DNS server that answers A queries with

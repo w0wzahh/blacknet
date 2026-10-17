@@ -1,4 +1,4 @@
-module github.com/emre/blacknet
+module github.com/w0wzahh/blacknet
 
 go 1.26.5
 

@@ -16,10 +16,10 @@ import (
 
 	"github.com/miekg/dns"
 
-	"github.com/emre/blacknet/internal/api"
-	"github.com/emre/blacknet/internal/app"
-	"github.com/emre/blacknet/internal/auth"
-	"github.com/emre/blacknet/internal/config"
+	"github.com/w0wzahh/blacknet/internal/api"
+	"github.com/w0wzahh/blacknet/internal/app"
+	"github.com/w0wzahh/blacknet/internal/auth"
+	"github.com/w0wzahh/blacknet/internal/config"
 )
 
 // mockUpstream is a local DNS server that answers everything with 203.0.113.1.

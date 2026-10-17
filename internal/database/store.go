@@ -8,8 +8,8 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/emre/blacknet/internal/filtering"
-	"github.com/emre/blacknet/internal/upstream"
+	"github.com/w0wzahh/blacknet/internal/filtering"
+	"github.com/w0wzahh/blacknet/internal/upstream"
 )
 
 // ErrNotFound is returned when a row does not exist.
