@@ -1,5 +1,5 @@
 BINARY=blacknet
-VERSION?=1.0.0
+VERSION?=2.0.0
 LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
 
 .PHONY: all build web test vet clean bench race docker
