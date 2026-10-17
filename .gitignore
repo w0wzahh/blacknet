@@ -11,3 +11,4 @@ blacknet-backup-*.zip
 config.yaml
 config.docker.yaml
 .DS_Store
+web/tsconfig.tsbuildinfo
