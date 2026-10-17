@@ -33,8 +33,8 @@ export function Toggle({ on, onChange, disabled }: { on: boolean; onChange: (v: 
         ${on ? 'bg-violet-600' : 'bg-zinc-700'}`}
       aria-pressed={on}
     >
-      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform
-        ${on ? 'translate-x-4.5 left-0' : 'translate-x-0.5 left-0'}`}
+      <span
+        className="absolute left-0 top-0.5 h-4 w-4 rounded-full bg-white transition-transform"
         style={{ transform: on ? 'translateX(18px)' : 'translateX(2px)' }} />
     </button>
   )
@@ -77,6 +77,21 @@ export function ErrorBox({ error }: { error: unknown }) {
 export function Loading() {
   return <div className="py-12 text-center text-sm text-zinc-500">Loading…</div>
 }
+
+// Shared dark chart theme for recharts — tooltips default to black text.
+export const chartTooltip = {
+  contentStyle: {
+    background: '#18181b',
+    border: '1px solid #3f3f46',
+    borderRadius: 8,
+    fontSize: 12,
+    color: '#e4e4e7',
+  },
+  labelStyle: { color: '#e4e4e7' },
+  itemStyle: { color: '#d4d4d8' },
+} as const
+
+export const chartLegend = { fontSize: 11, color: '#a1a1a5' } as const
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (

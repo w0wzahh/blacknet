@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { api, fmtNum, fmtTime, fmtTimeShort } from '../lib/api'
 import { Bucket, TopItem, Summary, Status } from '../lib/types'
-import { EmptyState, ErrorBox, Loading } from '../components/ui'
+import { EmptyState, ErrorBox, Loading, chartTooltip, chartLegend } from '../components/ui'
 
 const WINDOWS = [
   { v: '1h', label: '1 hour' },
@@ -35,8 +35,8 @@ export function Analytics() {
         api.get<TopItem[]>(`/api/v1/stats/top-domains?limit=10&window=${win}`),
         api.get<TopItem[]>(`/api/v1/stats/top-clients?limit=10&window=${win}`),
       ])
-      setSeries(ts); setSummary(sum); setStatus(st)
-      setTopBlocked(tb); setTopQueried(tq); setTopClients(tc)
+      setSeries(ts ?? []); setSummary(sum); setStatus(st)
+      setTopBlocked(tb ?? []); setTopQueried(tq ?? []); setTopClients(tc ?? [])
       setErr(null)
     } catch (e) { setErr(e) }
   }
@@ -77,8 +77,8 @@ export function Analytics() {
                     <CartesianGrid stroke="#27272a" vertical={false} />
                     <XAxis dataKey="ts" tickFormatter={t => fmtTimeShort(t)} tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} minTickGap={40} />
                     <YAxis tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }} labelFormatter={l => fmtTime(l as string)} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Tooltip {...chartTooltip} labelFormatter={l => fmtTime(l as string)} />
+                    <Legend wrapperStyle={chartLegend} />
                     <Area type="monotone" dataKey="allowed" stackId="1" stroke="#34d399" fill="#34d399" fillOpacity={0.25} name="Allowed" />
                     <Area type="monotone" dataKey="blocked" stackId="1" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.35} name="Blocked" />
                   </AreaChart>
@@ -95,8 +95,8 @@ export function Analytics() {
                       <Cell fill="#8b5cf6" />
                       <Cell fill="#71717a" fillOpacity={0.6} />
                     </Pie>
-                    <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Tooltip {...chartTooltip} />
+                    <Legend wrapperStyle={chartLegend} formatter={(v: string) => <span style={{ color: '#a1a1a5' }}>{v}</span>} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -133,7 +133,7 @@ function Ranked({ title, items, barColor, showAlias }: { title: string; items: T
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10, fill: '#a1a1aa' }} tickLine={false} axisLine={false}
                 tickFormatter={(v: string) => v.length > 18 ? v.slice(0, 17) + '…' : v} />
-              <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }} />
+              <Tooltip {...chartTooltip} />
               <Bar dataKey="total" fill={barColor} fillOpacity={0.75} radius={[0, 3, 3, 0]} barSize={10} />
             </BarChart>
           </ResponsiveContainer>

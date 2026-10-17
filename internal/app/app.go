@@ -336,7 +336,7 @@ func (a *App) GetDHCP(ctx context.Context) (dhcp.Config, bool, []dhcp.Lease, err
 	a.dhcpMu.Lock()
 	srv := a.dhcpSrv
 	a.dhcpMu.Unlock()
-	var leases []dhcp.Lease
+	leases := []dhcp.Lease{}
 	if srv != nil {
 		leases = srv.Leases()
 	}

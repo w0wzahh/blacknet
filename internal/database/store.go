@@ -76,7 +76,7 @@ func (db *DB) ListRules(ctx context.Context) ([]filtering.Rule, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []filtering.Rule
+	out := []filtering.Rule{}
 	for rows.Next() {
 		var r filtering.Rule
 		var enabled int
@@ -162,7 +162,7 @@ func (db *DB) ListBlocklists(ctx context.Context) ([]Blocklist, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Blocklist
+	out := []Blocklist{}
 	for rows.Next() {
 		var b Blocklist
 		var en int
@@ -348,7 +348,7 @@ func (db *DB) ListUpstreams(ctx context.Context) ([]upstream.Config, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []upstream.Config
+	out := []upstream.Config{}
 	for rows.Next() {
 		var c upstream.Config
 		var en int
@@ -423,7 +423,7 @@ func (db *DB) ListClients(ctx context.Context) ([]Client, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Client
+	out := []Client{}
 	for rows.Next() {
 		var c Client
 		if err := rows.Scan(&c.ID, &c.IP, &c.Alias, &c.Group, &c.FirstSeen, &c.LastSeen,
@@ -573,7 +573,7 @@ func (db *DB) ListAudit(ctx context.Context, limit int) ([]map[string]any, error
 		return nil, err
 	}
 	defer rows.Close()
-	var out []map[string]any
+	out := []map[string]any{}
 	for rows.Next() {
 		var ts, a, d string
 		if err := rows.Scan(&ts, &a, &d); err != nil {

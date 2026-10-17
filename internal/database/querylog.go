@@ -217,7 +217,7 @@ func (db *DB) TopDomains(ctx context.Context, since time.Time, blockedOnly bool,
 		return nil, err
 	}
 	defer rows.Close()
-	var out []TopItem
+	out := []TopItem{}
 	for rows.Next() {
 		var it TopItem
 		if err := rows.Scan(&it.Value, &it.Total, &it.Blocked); err != nil {
@@ -241,7 +241,7 @@ func (db *DB) TopClients(ctx context.Context, since time.Time, limit int) ([]Top
 		return nil, err
 	}
 	defer rows.Close()
-	var out []TopItem
+	out := []TopItem{}
 	for rows.Next() {
 		var it TopItem
 		if err := rows.Scan(&it.Value, &it.Total, &it.Blocked); err != nil {

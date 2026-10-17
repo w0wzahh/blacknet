@@ -46,7 +46,7 @@ function Shell() {
     <div className="flex h-full">
       <Sidebar version={version} />
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-6xl px-6 py-6">
+        <div className="mx-auto max-w-7xl px-6 py-6">
           <Routes>
             <Route path="/" element={<Overview />} />
             <Route path="/queries" element={<QueryLog />} />

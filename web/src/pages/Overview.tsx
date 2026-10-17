@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { api, fmtNum, fmtTime, fmtTimeShort } from '../lib/api'
 import { Status, Summary, Bucket, TopItem, QueryRow } from '../lib/types'
-import { StatCard, Badge, EmptyState, Loading, ErrorBox, Toggle } from '../components/ui'
+import { StatCard, Badge, EmptyState, Loading, ErrorBox, Toggle, chartTooltip } from '../components/ui'
 
 export function Overview() {
   const [status, setStatus] = useState<Status | null>(null)
@@ -24,8 +24,8 @@ export function Overview() {
         api.get<TopItem[]>('/api/v1/stats/top-clients?limit=8&window=24h'),
         api.get<{ items: QueryRow[] }>('/api/v1/queries?blocked=true&per_page=8'),
       ])
-      setStatus(st); setSummary(sum); setSeries(ts)
-      setTopBlocked(tb); setTopClients(tc); setRecentBlocked(rb.items)
+      setStatus(st); setSummary(sum); setSeries(ts ?? [])
+      setTopBlocked(tb ?? []); setTopClients(tc ?? []); setRecentBlocked(rb.items ?? [])
       setErr(null)
     } catch (e) { setErr(e) }
   }
@@ -115,7 +115,7 @@ export function Overview() {
                 <XAxis dataKey="ts" tickFormatter={t => fmtTimeShort(t)} tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} minTickGap={40} />
                 <YAxis tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip
-                  contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }}
+                  {...chartTooltip}
                   labelFormatter={l => fmtTime(l as string)}
                 />
                 <Area type="monotone" dataKey="total" stroke="#a1a1aa" fill="url(#gT)" strokeWidth={1.5} name="Total" />

@@ -19,7 +19,7 @@ const items = [
 
 export function Sidebar({ version }: { version: string }) {
   return (
-    <aside className="flex w-52 shrink-0 flex-col border-r border-zinc-800 bg-zinc-925 bg-zinc-900/40">
+    <aside className="flex w-52 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900/40">
       <div className="flex items-center gap-2 px-4 py-4 border-b border-zinc-800">
         <Shield className="h-5 w-5 text-violet-400" strokeWidth={1.75} />
         <span className="text-sm font-semibold tracking-wide text-zinc-100">Blacknet</span>

@@ -11,7 +11,7 @@ export function Clients() {
   const [addOpen, setAddOpen] = useState(false)
   const [viewQueries, setViewQueries] = useState<Client | null>(null)
 
-  const load = () => api.get<Client[]>('/api/v1/clients').then(setItems).catch(setErr)
+  const load = () => api.get<Client[]>('/api/v1/clients').then(r => setItems(r ?? [])).catch(setErr)
   useEffect(() => { load() }, [])
 
   const del = async (c: Client) => {
@@ -23,7 +23,7 @@ export function Clients() {
     await api.post(`/api/v1/clients/${c.id}/reset-stats?confirm=true`).then(load).catch(setErr)
   }
 
-  if (!items) return <Loading />
+  if (!items) return err ? <ErrorBox error={err} /> : <Loading />
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -55,12 +55,12 @@ export function Clients() {
                   <td className="td text-right">{c.block_pct.toFixed(1)}%</td>
                   <td className="td">
                     <div className="flex justify-end gap-1">
-                      <button className="btn-ghost !px-2" title="Recent queries" onClick={() => setViewQueries(c)}>
+                      <button className="btn-ghost px-2!" title="Recent queries" onClick={() => setViewQueries(c)}>
                         <ScrollIcon />
                       </button>
-                      <button className="btn-ghost !px-2" title="Edit" onClick={() => setEdit(c)}><Pencil className="h-3.5 w-3.5" /></button>
-                      <button className="btn-ghost !px-2" title="Reset stats" onClick={() => reset(c)}><RotateCcw className="h-3.5 w-3.5" /></button>
-                      <button className="btn-subtle-danger !px-2" title="Delete" onClick={() => del(c)}><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button className="btn-ghost px-2!" title="Edit" onClick={() => setEdit(c)}><Pencil className="h-3.5 w-3.5" /></button>
+                      <button className="btn-ghost px-2!" title="Reset stats" onClick={() => reset(c)}><RotateCcw className="h-3.5 w-3.5" /></button>
+                      <button className="btn-subtle-danger px-2!" title="Delete" onClick={() => del(c)}><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </td>
                 </tr>
@@ -131,7 +131,7 @@ function ClientQueries({ client, onClose }: { client: Client; onClose: () => voi
   const [rows, setRows] = useState<QueryRow[] | null>(null)
   useEffect(() => {
     api.get<{ items: QueryRow[] }>(`/api/v1/clients/${client.id}/queries?per_page=50`)
-      .then(r => setRows(r.items)).catch(() => setRows([]))
+      .then(r => setRows(r.items ?? [])).catch(() => setRows([]))
   }, [client.id])
   return (
     <Modal title={`Recent queries — ${client.alias || client.ip}`} onClose={onClose} wide>

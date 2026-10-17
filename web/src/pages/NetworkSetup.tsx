@@ -56,7 +56,7 @@ export function NetworkSetup() {
         </p>
         <div className="flex items-center gap-2">
           <code className="rounded bg-zinc-950 px-3 py-1.5 font-mono text-sm text-violet-300">{info.primary_ipv4 || 'not detected'}</code>
-          <button className="btn-ghost !px-2" onClick={() => copy(info.primary_ipv4)}>
+          <button className="btn-ghost px-2!" onClick={() => copy(info.primary_ipv4)}>
             {copied === info.primary_ipv4 ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
         </div>

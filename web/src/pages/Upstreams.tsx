@@ -29,7 +29,7 @@ export function Upstreams() {
   const [testing, setTesting] = useState<Record<number, boolean>>({})
   const [testAll, setTestAll] = useState(false)
 
-  const load = () => api.get<Upstream[]>('/api/v1/upstreams').then(setItems).catch(setErr)
+  const load = () => api.get<Upstream[]>('/api/v1/upstreams').then(r => setItems(r ?? [])).catch(setErr)
   useEffect(() => { load() }, [])
 
   const toggle = async (u: Upstream) =>
@@ -50,7 +50,7 @@ export function Upstreams() {
     setTestAll(false)
   }
 
-  if (!items) return <Loading />
+  if (!items) return err ? <ErrorBox error={err} /> : <Loading />
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -94,11 +94,11 @@ export function Upstreams() {
                   <td className="td"><Toggle on={u.enabled} onChange={() => toggle(u)} /></td>
                   <td className="td">
                     <div className="flex justify-end gap-1">
-                      <button className="btn-ghost !px-2" disabled={testing[u.id]} onClick={() => test(u)} title="Test now">
+                      <button className="btn-ghost px-2!" disabled={testing[u.id]} onClick={() => test(u)} title="Test now">
                         <Activity className="h-3.5 w-3.5" />
                       </button>
-                      <button className="btn-ghost !px-2" onClick={() => setEdit(u)}><Pencil className="h-3.5 w-3.5" /></button>
-                      <button className="btn-subtle-danger !px-2" onClick={() => del(u)}><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button className="btn-ghost px-2!" onClick={() => setEdit(u)}><Pencil className="h-3.5 w-3.5" /></button>
+                      <button className="btn-subtle-danger px-2!" onClick={() => del(u)}><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </td>
                 </tr>
@@ -136,7 +136,7 @@ function UpstreamModal({ upstream, onClose, onSaved }: {
         {!upstream && (
           <div className="flex flex-wrap gap-1.5">
             {EXAMPLES.map(ex => (
-              <button key={ex.name} className="btn-ghost !px-2 !py-1 text-xs"
+              <button key={ex.name} className="btn-ghost px-2! py-1! text-xs"
                 onClick={() => { setName(ex.name); setProtocol(ex.protocol as any); setAddress(ex.address) }}>
                 {ex.name}
               </button>

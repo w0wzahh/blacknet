@@ -11,7 +11,7 @@ export function Blocklists() {
   const [refreshing, setRefreshing] = useState<number | null>(null)
   const [notice, setNotice] = useState('')
 
-  const load = () => api.get<Blocklist[]>('/api/v1/blocklists').then(setItems).catch(setErr)
+  const load = () => api.get<Blocklist[]>('/api/v1/blocklists').then(r => setItems(r ?? [])).catch(setErr)
   useEffect(() => { load() }, [])
 
   const toggle = async (b: Blocklist) => {
@@ -31,7 +31,7 @@ export function Blocklists() {
     await api.del(`/api/v1/blocklists/${b.id}`).then(load).catch(setErr)
   }
 
-  if (!items) return <Loading />
+  if (!items) return err ? <ErrorBox error={err} /> : <Loading />
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -63,10 +63,10 @@ export function Blocklists() {
                   <td className="td max-w-[160px] truncate text-xs text-red-400" title={b.last_error}>{b.last_error || '—'}</td>
                   <td className="td">
                     <div className="flex justify-end gap-1">
-                      <button className="btn-ghost !px-2" disabled={refreshing === b.id} onClick={() => refresh(b)} title="Refresh now">
+                      <button className="btn-ghost px-2!" disabled={refreshing === b.id} onClick={() => refresh(b)} title="Refresh now">
                         <RefreshCw className={`h-3.5 w-3.5 ${refreshing === b.id ? 'animate-spin' : ''}`} />
                       </button>
-                      <button className="btn-subtle-danger !px-2" onClick={() => del(b)} title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button className="btn-subtle-danger px-2!" onClick={() => del(b)} title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </td>
                 </tr>

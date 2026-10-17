@@ -39,5 +39,9 @@ body {
 .btn-danger { @apply bg-red-600/90 text-white hover:bg-red-500; }
 .btn-subtle-danger { @apply border border-red-800/60 text-red-400 hover:bg-red-950/40; }
 
-.th { @apply text-left text-xs font-medium uppercase tracking-wide text-zinc-500 px-3 py-2 border-b border-zinc-800; }
-.td { @apply px-3 py-2 border-b border-zinc-800/60 text-sm text-zinc-300; }
+.th { @apply text-left text-xs font-medium uppercase tracking-wide text-zinc-500 px-3 py-2.5 border-b border-zinc-800 whitespace-nowrap; }
+.td { @apply px-3 py-2.5 border-b border-zinc-800/60 text-sm text-zinc-300 align-middle; }
+
+select.input option {
+  @apply bg-zinc-900 text-zinc-200;
+}

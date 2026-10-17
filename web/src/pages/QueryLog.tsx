@@ -33,7 +33,7 @@ export function QueryLog() {
       params.set('per_page', '100')
       const res = await api.get<{ items: QueryRow[]; total: number; pages: number; dropped_events: number }>(
         '/api/v1/queries?' + params)
-      setRows(res.items); setTotal(res.total); setPages(res.pages); setDropped(res.dropped_events)
+      setRows(res.items ?? []); setTotal(res.total); setPages(res.pages); setDropped(res.dropped_events)
       setErr(null)
     } catch (e) { setErr(e) }
   }, [page, domain, client, blocked, qtype])

@@ -14,8 +14,8 @@ export function Rules() {
   const [importOpen, setImportOpen] = useState(false)
 
   const load = () => {
-    api.get<Rule[]>('/api/v1/rules').then(setItems).catch(setErr)
-    api.get<Client[]>('/api/v1/clients').then(setClients).catch(() => {})
+    api.get<Rule[]>('/api/v1/rules').then(r => setItems(r ?? [])).catch(setErr)
+    api.get<Client[]>('/api/v1/clients').then(r => setClients(r ?? [])).catch(() => {})
   }
   useEffect(() => { load() }, [])
 
@@ -27,7 +27,7 @@ export function Rules() {
     await api.del(`/api/v1/rules/${r.id}`).then(load).catch(setErr)
   }
 
-  if (!items) return <Loading />
+  if (!items) return err ? <ErrorBox error={err} /> : <Loading />
   const filtered = items.filter(r => !search || r.domain.includes(search.toLowerCase()))
   const clientName = (id: number) => id === 0 ? 'all clients' : (clients.find(c => c.id === id)?.alias || `client #${id}`)
 
@@ -72,8 +72,8 @@ export function Rules() {
                   <td className="td"><Toggle on={r.enabled} onChange={() => toggle(r)} /></td>
                   <td className="td">
                     <div className="flex justify-end gap-1">
-                      <button className="btn-ghost !px-2" onClick={() => setEdit(r)}><Pencil className="h-3.5 w-3.5" /></button>
-                      <button className="btn-subtle-danger !px-2" onClick={() => del(r)}><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button className="btn-ghost px-2!" onClick={() => setEdit(r)}><Pencil className="h-3.5 w-3.5" /></button>
+                      <button className="btn-subtle-danger px-2!" onClick={() => del(r)}><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </td>
                 </tr>
