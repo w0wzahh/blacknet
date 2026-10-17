@@ -1,0 +1,13 @@
+data/
+testdata/
+web/node_modules/
+web/dist/
+*.exe
+blacknet
+blacknet-backup-*.zip
+*.db
+*.db-shm
+*.db-wal
+config.yaml
+config.docker.yaml
+.DS_Store

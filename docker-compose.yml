@@ -1,0 +1,19 @@
+services:
+  blacknet:
+    build: .
+    image: blacknet:1.0.0
+    container_name: blacknet
+    restart: unless-stopped
+    ports:
+      # DNS to the LAN; the dashboard on 8080.
+      - "53:53/udp"
+      - "53:53/tcp"
+      - "8080:8080/tcp"
+    volumes:
+      - blacknet-data:/data
+      - ./config.docker.yaml:/app/config.yaml:ro
+    environment:
+      - TZ=UTC
+
+volumes:
+  blacknet-data:

@@ -1,0 +1,32 @@
+# Blacknet bootstrap configuration.
+# Runtime settings (upstreams, rules, blocklists, blocking mode) live in the
+# SQLite database and are managed through the API/dashboard.
+
+data_dir: /data
+log_level: info
+
+dns:
+  # Addresses the DNS server binds to.
+  listen:
+    - "0.0.0.0:53"
+    - "[::]:53"
+  # Client networks allowed to query this resolver. Defaults cover RFC1918,
+  # loopback, link-local and ULA. Never add 0.0.0.0/0 — that makes an open
+  # resolver usable for amplification attacks.
+  trusted_cidrs:
+    - "10.0.0.0/8"
+    - "172.16.0.0/12"
+    - "192.168.0.0/16"
+    - "127.0.0.0/8"
+    - "::1/128"
+    - "fe80::/10"
+    - "fc00::/7"
+    - "169.254.0.0/16"
+
+web:
+  # Dashboard and API bind address.
+  listen: "0.0.0.0:8080"
+
+updates:
+  # Optional external version check. Disabled by default; no telemetry is sent.
+  check_enabled: false

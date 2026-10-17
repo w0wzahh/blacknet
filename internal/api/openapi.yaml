@@ -1,0 +1,301 @@
+openapi: 3.0.3
+info:
+  title: Blacknet API
+  version: 1.0.0
+  description: |
+    REST API for the Blacknet DNS filter. All endpoints are under /api/v1.
+    Authentication: session cookie (from /auth/login) or "Authorization: Bearer
+    <token>" with the local API token stored at <data_dir>/api.token.
+    Cookie-authenticated mutations must send the header "X-Requested-With: XMLHttpRequest" (CSRF).
+servers:
+  - url: /api/v1
+paths:
+  /health:
+    get:
+      summary: Service health (public)
+      security: []
+      responses:
+        '200': { description: Health snapshot }
+  /auth/login:
+    post:
+      summary: Log in with the admin password
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties: { password: { type: string } }
+      responses:
+        '200': { description: Session cookie set }
+        '401': { description: Invalid password }
+        '429': { description: Rate limited }
+  /auth/logout:
+    post:
+      summary: Destroy the session
+      responses: { '200': { description: Logged out } }
+  /auth/state:
+    get:
+      summary: Authentication/setup state (public)
+      security: []
+      responses: { '200': { description: password_set, authenticated, setup_completed } }
+  /setup/password:
+    post:
+      summary: Set the initial admin password (works once)
+      security: []
+      responses:
+        '200': { description: Password set, session created }
+        '409': { description: Password already configured }
+  /status:
+    get:
+      summary: Service status, counters, cache and upstream health
+      responses: { '200': { description: Status object } }
+  /about:
+    get:
+      summary: Version and license info
+      responses: { '200': { description: About info } }
+  /audit:
+    get:
+      summary: Recent audit events
+      responses: { '200': { description: Audit entries } }
+  /stats/summary:
+    get:
+      summary: Aggregate statistics
+      parameters:
+        - { name: window, in: query, schema: { type: string, enum: [1h, 24h, 7d, 30d] } }
+      responses: { '200': { description: totals, blocked, pct, unique domains, clients, latency } }
+  /stats/timeseries:
+    get:
+      summary: Bucketed query counts
+      parameters:
+        - { name: window, in: query, schema: { type: string } }
+        - { name: buckets, in: query, schema: { type: integer, maximum: 500 } }
+      responses: { '200': { description: array of {ts,total,blocked,allowed} } }
+  /stats/top-domains:
+    get:
+      parameters:
+        - { name: blocked, in: query, schema: { type: boolean } }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: window, in: query, schema: { type: string } }
+      responses: { '200': { description: ranked domains } }
+  /stats/top-clients:
+    get:
+      parameters:
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: window, in: query, schema: { type: string } }
+      responses: { '200': { description: ranked clients with aliases } }
+  /queries:
+    get:
+      summary: Paginated query log
+      parameters:
+        - { name: domain, in: query, schema: { type: string } }
+        - { name: client, in: query, schema: { type: string } }
+        - { name: blocked, in: query, schema: { type: boolean } }
+        - { name: qtype, in: query, schema: { type: integer } }
+        - { name: since, in: query, schema: { type: string, format: date-time } }
+        - { name: until, in: query, schema: { type: string, format: date-time } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, maximum: 1000 } }
+      responses: { '200': { description: items + total + pagination } }
+  /queries/export:
+    get:
+      summary: CSV export of filtered queries
+      parameters:
+        - { name: domain, in: query, schema: { type: string } }
+        - { name: client, in: query, schema: { type: string } }
+        - { name: blocked, in: query, schema: { type: boolean } }
+      responses: { '200': { description: text/csv } }
+  /queries/live:
+    get:
+      summary: Server-Sent Events stream of live query events
+      responses: { '200': { description: text/event-stream } }
+  /clients:
+    get:
+      summary: List known clients
+      responses: { '200': { description: clients with stats } }
+    post:
+      summary: Register a client by IP
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ip]
+              properties:
+                ip: { type: string }
+                alias: { type: string }
+                group: { type: string }
+      responses: { '201': { description: client }, '400': { description: invalid ip } }
+  /clients/{id}:
+    patch:
+      summary: Update alias/group
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: updated }, '404': { description: not found } }
+    delete:
+      summary: Forget a client and its stats
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: deleted } }
+  /clients/{id}/reset-stats:
+    post:
+      summary: Zero client counters (requires ?confirm=true)
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: reset }, '400': { description: confirm missing } }
+  /clients/{id}/queries:
+    get:
+      summary: Recent queries for a client
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: query rows } }
+  /blocklists:
+    get:
+      summary: List blocklist sources
+      responses: { '200': { description: blocklists } }
+    post:
+      summary: Add a blocklist by URL (https only by default)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, url]
+              properties: { name: { type: string }, url: { type: string } }
+      responses: { '201': { description: created, download starts in background }, '400': { description: invalid/blocked URL }, '409': { description: duplicate } }
+  /blocklists/{id}:
+    patch:
+      summary: Enable/disable or rename a list
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: updated } }
+    delete:
+      summary: Delete a list and its imported domains
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: deleted } }
+  /blocklists/{id}/refresh:
+    post:
+      summary: Re-download and re-import a list
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: refresh result }, '502': { description: refresh failed; previous data kept } }
+  /blocklists/validate:
+    post:
+      summary: Check whether a URL would be accepted (SSRF policy)
+      responses: { '200': { description: '{valid,error}' } }
+  /rules:
+    get:
+      summary: List user rules
+      responses: { '200': { description: rules } }
+    post:
+      summary: Create a rule
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain, action]
+              properties:
+                domain: { type: string }
+                action: { type: string, enum: [allow, block] }
+                scope: { type: string, enum: [exact, tree], default: exact }
+                client_id: { type: integer, default: 0 }
+                comment: { type: string }
+                enabled: { type: boolean, default: true }
+      responses: { '201': { description: created }, '400': { description: invalid }, '409': { description: duplicate } }
+  /rules/{id}:
+    patch:
+      summary: Update a rule
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: updated } }
+    delete:
+      summary: Delete a rule
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { '200': { description: deleted } }
+  /rules/test:
+    post:
+      summary: Evaluate a domain against the live engine
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain]
+              properties: { domain: { type: string }, client_id: { type: integer } }
+      responses: { '200': { description: decision {blocked,reason,rule,list_id} } }
+  /rules/export:
+    get:
+      summary: Export rules as text
+      responses: { '200': { description: text/plain } }
+  /rules/import:
+    post:
+      summary: Bulk import rules ("<allow|block> <domain>" per line)
+      responses: { '200': { description: '{added,skipped_duplicates,errors}' } }
+  /upstreams:
+    get:
+      summary: List upstreams with live stats
+      responses: { '200': { description: upstreams + stats } }
+    post:
+      summary: Add upstream (udp|tcp|dot|doh)
+      responses: { '201': { description: created }, '400': { description: invalid } }
+  /upstreams/{id}:
+    patch:
+      responses: { '200': { description: updated } }
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+    delete:
+      responses: { '200': { description: deleted } }
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+  /upstreams/test:
+    post:
+      summary: Perform a real resolution test. {id} for one, full config for ad-hoc, {} for all.
+      responses: { '200': { description: per-resolver stats } }
+  /settings:
+    get:
+      summary: Runtime settings
+      responses: { '200': { description: settings } }
+    patch:
+      summary: Partial update; validated and applied live where possible
+      responses: { '200': { description: updated settings }, '400': { description: per-field errors } }
+  /cache/flush:
+    post:
+      summary: Flush the DNS cache (no restart)
+      responses: { '200': { description: flushed } }
+  /protection/enable:
+    post:
+      summary: Enable filtering
+      responses: { '200': { description: enabled } }
+  /protection/disable:
+    post:
+      summary: Disable filtering (requires ?confirm=true)
+      responses: { '200': { description: disabled }, '400': { description: confirm missing } }
+  /backup:
+    post:
+      summary: Download a zip backup (?include_history=true adds query log)
+      responses: { '200': { description: application/zip } }
+  /restore:
+    post:
+      summary: Restore a backup archive (requires ?confirm=true)
+      responses: { '200': { description: restored }, '400': { description: invalid archive } }
+  /backup/inspect:
+    post:
+      summary: Validate an archive and list what would be replaced
+      responses: { '200': { description: manifest + row counts } }
+  /network/interfaces:
+    get:
+      summary: Local network interfaces
+      responses: { '200': { description: interfaces } }
+  /network/info:
+    get:
+      summary: LAN address, gateway guess, listeners
+      responses: { '200': { description: network info } }
+  /network/port-check:
+    get:
+      summary: Check whether a UDP+TCP bind on addr succeeds
+      parameters: [ { name: addr, in: query, required: true, schema: { type: string } } ]
+      responses: { '200': { description: udp_free/tcp_free } }
+  /diagnostics:
+    get:
+      summary: Rule-engine + service diagnostics (?domain=)
+      responses: { '200': { description: diagnostics } }
+components:
+  securitySchemes:
+    sessionCookie: { type: apiKey, in: cookie, name: blacknet_session }
+    bearerToken: { type: http, scheme: bearer }
+security:
+  - sessionCookie: []
+  - bearerToken: []
