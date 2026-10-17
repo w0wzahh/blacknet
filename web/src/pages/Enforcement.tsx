@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Play, RotateCcw, ShieldCheck, AlertTriangle, Eye } from 'lucide-react'
+import { Play, RotateCcw, ShieldCheck, AlertTriangle, Eye, Router, CheckCircle2, History } from 'lucide-react'
 import { api, fmtTime } from '../lib/api'
 import { Integration, EnforcementPlan, EnforcementOp } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, PageHeader } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, PageHeader, StatCard, SectionLabel } from '../components/ui'
 
 export function Enforcement() {
   const [integrations, setIntegrations] = useState<Integration[] | null>(null)
@@ -26,6 +26,14 @@ export function Enforcement() {
       <PageHeader title="Router Enforcement" desc="Make the router send all DNS through Blacknet — every change previews first and can be rolled back." />
       <ErrorBox error={err} />
 
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Integrations" value={integrations.length} icon={<Router className="h-3.5 w-3.5" />} />
+        <StatCard label="Available" value={integrations.filter(i => i.available).length} icon={<CheckCircle2 className="h-3.5 w-3.5" />} />
+        <StatCard label="Verified" value={integrations.filter(i => i.verified).length} accent icon={<ShieldCheck className="h-3.5 w-3.5" />} />
+        <StatCard label="Operations" value={ops.length} icon={<History className="h-3.5 w-3.5" />} />
+      </div>
+
+      <SectionLabel>Adapters</SectionLabel>
       <div className="grid gap-3 sm:grid-cols-2">
         {integrations.map(i => (
           <div key={i.id} className="card p-4">
@@ -47,7 +55,7 @@ export function Enforcement() {
         ))}
       </div>
 
-      <h2 className="pt-2 text-sm font-semibold text-zinc-200">Operation history</h2>
+      <SectionLabel>Operation history</SectionLabel>
       {ops.length === 0 ? (
         <EmptyState title="No enforcement operations yet" hint="Applied changes and rollbacks are recorded here with their full plan." />
       ) : (

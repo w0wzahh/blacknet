@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Plus, Download, Upload, FlaskConical, Pencil, Trash2, Search, SearchCode, ListChecks, GitCompareArrows, Clock } from 'lucide-react'
+import { Plus, Download, Upload, FlaskConical, Pencil, Trash2, Search, SearchCode, ListChecks, GitCompareArrows, Clock, ShieldCheck, Ban, Timer, Users } from 'lucide-react'
 import { api, fmtTime } from '../lib/api'
 import { Rule, Client, PolicyGroup, InspectResult, BatchResult, RuleConflict } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader, StatCard } from '../components/ui'
 import { ExplanationView } from './Policies'
 
 export function Rules() {
@@ -59,6 +59,13 @@ export function Rules() {
           <button className="btn-primary" onClick={() => setEdit('new')}><Plus className="h-3.5 w-3.5" /> Add rule</button>
         </div>
       </PageHeader>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Rules" value={items.length} sub={`${items.filter(r => r.enabled).length} enabled`} icon={<ShieldCheck className="h-3.5 w-3.5" />} />
+        <StatCard label="Blocking" value={items.filter(r => r.action === 'block').length} accent icon={<Ban className="h-3.5 w-3.5" />} />
+        <StatCard label="Scoped" value={items.filter(r => r.client_id !== 0 || r.group_id !== 0).length} sub="client or group" icon={<Users className="h-3.5 w-3.5" />} />
+        <StatCard label="Temporary" value={items.filter(r => r.expires_at).length} icon={<Timer className="h-3.5 w-3.5" />} />
+      </div>
 
       <div className="card flex items-center gap-2 p-3">
         <div className="relative">

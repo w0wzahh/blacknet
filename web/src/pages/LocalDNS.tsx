@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Plus, FlaskConical, Pencil, Trash2, AlertTriangle } from 'lucide-react'
+import { Plus, FlaskConical, Pencil, Trash2, AlertTriangle, Globe, ToggleRight, Asterisk, Hash } from 'lucide-react'
 import { api, fmtTime } from '../lib/api'
 import { LocalRecord } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader, StatCard } from '../components/ui'
 
 export function LocalDNS() {
   const [items, setItems] = useState<LocalRecord[] | null>(null)
@@ -35,6 +35,12 @@ export function LocalDNS() {
         </div>
       </PageHeader>
       <ErrorBox error={err} />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Records" value={items.length} icon={<Globe className="h-3.5 w-3.5" />} />
+        <StatCard label="Enabled" value={items.filter(r => r.enabled).length} icon={<ToggleRight className="h-3.5 w-3.5" />} />
+        <StatCard label="Wildcards" value={items.filter(r => r.name.startsWith('*.')).length} icon={<Asterisk className="h-3.5 w-3.5" />} />
+        <StatCard label="Types used" value={new Set(items.map(r => r.type)).size} icon={<Hash className="h-3.5 w-3.5" />} />
+      </div>
       {warnings.length > 0 && (
         <div className="rounded-md border border-amber-800/60 bg-amber-950/40 px-3 py-2 text-sm text-amber-300">
           {warnings.map((w, i) => <div key={i} className="flex items-center gap-2"><AlertTriangle className="h-3.5 w-3.5" /> {w}</div>)}

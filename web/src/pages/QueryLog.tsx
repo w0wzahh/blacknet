@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Pause, Play, Download, Search } from 'lucide-react'
 import { api, fmtTime, fmtTimeShort } from '../lib/api'
 import { QueryRow } from '../lib/types'
-import { Badge, ErrorBox, PageHeader } from '../components/ui'
+import { Badge, ErrorBox, PageHeader, StatusDot } from '../components/ui'
 
 const QTYPES = ['', 'A', 'AAAA', 'CNAME', 'MX', 'TXT', 'PTR', 'SRV', 'NS', 'HTTPS']
 const QTYPE_IDS: Record<string, number> = { A: 1, NS: 2, CNAME: 5, PTR: 12, MX: 15, TXT: 16, AAAA: 28, SRV: 33, HTTPS: 65 }
@@ -66,6 +66,9 @@ export function QueryLog() {
     <div className="space-y-4">
       <PageHeader title="Query Log" desc="Every DNS query the resolver answered — live tail included.">
         <div className="flex items-center gap-2">
+          <Badge tone={live ? 'ok' : 'muted'}>
+            <StatusDot tone={live ? 'ok' : 'muted'} /><span className="ml-1">{live ? 'live' : 'paused'}</span>
+          </Badge>
           {dropped > 0 && <Badge tone="warn">{dropped} events dropped</Badge>}
           <button className="btn-ghost" onClick={() => setLive(v => !v)}>
             {live ? <><Pause className="h-3.5 w-3.5" /> Pause</> : <><Play className="h-3.5 w-3.5" /> Resume</>}

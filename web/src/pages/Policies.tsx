@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Plus, FlaskConical, Pencil, Trash2, Copy, Link2 } from 'lucide-react'
+import { Plus, FlaskConical, Pencil, Trash2, Copy, Link2, Users, ToggleRight, ArrowUpCircle, MonitorSmartphone } from 'lucide-react'
 import { api, fmtTime } from '../lib/api'
 import { PolicyGroup, Assignment, Client, Upstream, Explanation } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader, StatCard } from '../components/ui'
 
 export function Policies() {
   const [groups, setGroups] = useState<PolicyGroup[] | null>(null)
@@ -49,6 +49,13 @@ export function Policies() {
         </div>
       </PageHeader>
       <ErrorBox error={err} />
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Groups" value={groups.length} icon={<Users className="h-3.5 w-3.5" />} />
+        <StatCard label="Enabled" value={groups.filter(g => g.enabled).length} icon={<ToggleRight className="h-3.5 w-3.5" />} />
+        <StatCard label="Assignments" value={assignments.length} icon={<Link2 className="h-3.5 w-3.5" />} />
+        <StatCard label="Devices grouped" value={groups.reduce((a, g) => a + (g.client_count ?? 0), 0)} icon={<MonitorSmartphone className="h-3.5 w-3.5" />} />
+      </div>
 
       {groups.length === 0 ? (
         <EmptyState title="No policy groups"

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Radar, Check, Info } from 'lucide-react'
+import { Radar, Check, Info, MonitorSmartphone, Bell, Network } from 'lucide-react'
 import { api, fmtTime } from '../lib/api'
 import { DiscoveryEvent } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, PageHeader } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, PageHeader, StatCard } from '../components/ui'
 
 interface EventsResp {
   items: DiscoveryEvent[]
@@ -43,6 +43,15 @@ export function Devices() {
         </button>
       </PageHeader>
       <ErrorBox error={err} />
+
+      {data.enabled && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard label="Events" value={items.length} icon={<Radar className="h-3.5 w-3.5" />} />
+          <StatCard label="Unacknowledged" value={unacked.length} accent={unacked.length > 0} icon={<Bell className="h-3.5 w-3.5" />} />
+          <StatCard label="Unique sightings" value={new Set(items.map(e => e.value)).size} icon={<MonitorSmartphone className="h-3.5 w-3.5" />} />
+          <StatCard label="Host interfaces" value={(data.host_interfaces ?? []).length} icon={<Network className="h-3.5 w-3.5" />} />
+        </div>
+      )}
 
       {!data.enabled ? (
         <div className="card flex items-start gap-3 p-4">

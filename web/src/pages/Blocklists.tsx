@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Plus, RefreshCw, Trash2, History, Users, Sparkles, GitCompareArrows, AlertTriangle } from 'lucide-react'
+import { Plus, RefreshCw, Trash2, History, Users, Sparkles, GitCompareArrows, AlertTriangle, ListFilter, CheckCircle2, Globe, XCircle } from 'lucide-react'
 import { api, fmtNum, fmtTime } from '../lib/api'
 import { Blocklist, ListHistoryEntry, PolicyGroup } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader, StatCard } from '../components/ui'
 
 interface Profile {
   id: string; name: string; description: string; risk: string
@@ -78,6 +78,12 @@ export function Blocklists() {
       </PageHeader>
       <ErrorBox error={err} />
       {notice && <div className="rounded-md border border-emerald-800/60 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Lists" value={items.length} sub={`${items.filter(b => b.enabled).length} enabled`} icon={<ListFilter className="h-3.5 w-3.5" />} />
+        <StatCard label="Domains covered" value={fmtNum(items.reduce((a, b) => a + b.rule_count, 0))} icon={<Globe className="h-3.5 w-3.5" />} />
+        <StatCard label="Healthy" value={items.filter(b => !b.last_error).length} icon={<CheckCircle2 className="h-3.5 w-3.5" />} />
+        <StatCard label="Failing" value={items.filter(b => b.last_error).length} icon={<XCircle className="h-3.5 w-3.5" />} />
+      </div>
       {items.length === 0 ? (
         <EmptyState title="No blocklists" hint="Add a blocklist URL or apply a curated profile to start importing domains." />
       ) : (

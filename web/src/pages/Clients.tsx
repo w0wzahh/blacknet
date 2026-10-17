@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Pencil, RotateCcw, Trash2, Plus, Fingerprint } from 'lucide-react'
+import { Pencil, RotateCcw, Trash2, Plus, Fingerprint, MonitorSmartphone, Signal, Users, ShieldCheck } from 'lucide-react'
 import { api, fmtNum, fmtTime, fmtTimeShort } from '../lib/api'
 import { Client, QueryRow, PolicyGroup, Identity } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, PageHeader } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, PageHeader, StatCard } from '../components/ui'
 
 const CLASSIFICATIONS = ['', 'computer', 'phone', 'tablet', 'tv', 'iot', 'server', 'router', 'other']
 
@@ -38,6 +38,12 @@ export function Clients() {
         <button className="btn-primary" onClick={() => setAddOpen(true)}><Plus className="h-3.5 w-3.5" /> Add client</button>
       </PageHeader>
       <ErrorBox error={err} />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Devices" value={items.length} icon={<MonitorSmartphone className="h-3.5 w-3.5" />} />
+        <StatCard label="Active 24h" value={items.filter(c => Date.now() - new Date(c.last_seen).getTime() < 86400000).length} icon={<Signal className="h-3.5 w-3.5" />} />
+        <StatCard label="In groups" value={items.filter(c => c.policy_group_id !== 0).length} icon={<Users className="h-3.5 w-3.5" />} />
+        <StatCard label="Queries blocked" value={fmtNum(items.reduce((a, c) => a + c.blocked_queries, 0))} accent icon={<ShieldCheck className="h-3.5 w-3.5" />} />
+      </div>
       {items.length === 0 ? (
         <EmptyState title="No clients seen yet" hint="Devices appear here once they query Blacknet. Assign aliases to recognize them." />
       ) : (

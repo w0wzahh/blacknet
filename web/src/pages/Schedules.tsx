@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Plus, Pencil, Trash2, Eye } from 'lucide-react'
+import { Plus, Pencil, Trash2, Eye, CalendarClock, ToggleRight, Zap, Users } from 'lucide-react'
 import { api, fmtTime } from '../lib/api'
 import { Schedule, SchedulePreview, PolicyGroup, Client, Blocklist } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader, StatCard } from '../components/ui'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -60,6 +60,12 @@ export function Schedules() {
         <button className="btn-primary" onClick={() => setEdit('new')}><Plus className="h-3.5 w-3.5" /> Add schedule</button>
       </PageHeader>
       <ErrorBox error={err} />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Schedules" value={items.length} icon={<CalendarClock className="h-3.5 w-3.5" />} />
+        <StatCard label="Enabled" value={items.filter(s => s.enabled).length} icon={<ToggleRight className="h-3.5 w-3.5" />} />
+        <StatCard label="Protection pauses" value={items.filter(s => s.effect === 'protection_off').length} icon={<Zap className="h-3.5 w-3.5" />} />
+        <StatCard label="Scoped" value={items.filter(s => s.target_kind !== 'all').length} sub="group or client" icon={<Users className="h-3.5 w-3.5" />} />
+      </div>
       {items.length === 0 ? (
         <EmptyState title="No schedules"
           hint='Schedules change filtering by time — e.g. "bedtime" blocks everything for the Kids group after 21:00.' />

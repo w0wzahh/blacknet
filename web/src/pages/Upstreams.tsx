@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Plus, Activity, Trash2, Pencil } from 'lucide-react'
+import { Plus, Activity, Trash2, Pencil, ArrowUpCircle, HeartPulse, Gauge, Lock } from 'lucide-react'
 import { api } from '../lib/api'
 import { Upstream } from '../lib/types'
-import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader } from '../components/ui'
+import { Badge, EmptyState, ErrorBox, Loading, Modal, Field, Toggle, PageHeader, StatCard } from '../components/ui'
 
 const PROTOCOLS = [
   { v: 'udp', label: 'DNS (UDP)', hint: 'host:53' },
@@ -62,6 +62,12 @@ export function Upstreams() {
         </div>
       </PageHeader>
       <ErrorBox error={err} />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Upstreams" value={items.length} sub={`${items.filter(u => u.enabled).length} enabled`} icon={<ArrowUpCircle className="h-3.5 w-3.5" />} />
+        <StatCard label="Healthy" value={`${items.filter(u => u.stats?.healthy).length}/${items.length}`} icon={<HeartPulse className="h-3.5 w-3.5" />} />
+        <StatCard label="Avg RTT" value={items.some(u => u.stats?.last_rtt_ms) ? `${(items.reduce((a, u) => a + (u.stats?.last_rtt_ms || 0), 0) / Math.max(1, items.filter(u => u.stats?.last_rtt_ms).length)).toFixed(0)}ms` : '—'} icon={<Gauge className="h-3.5 w-3.5" />} />
+        <StatCard label="Encrypted" value={items.filter(u => u.protocol === 'dot' || u.protocol === 'doh').length} sub="DoT / DoH" icon={<Lock className="h-3.5 w-3.5" />} />
+      </div>
       {items.length === 0 ? (
         <EmptyState title="No upstream resolvers" hint="Add at least one upstream so allowed queries can resolve." />
       ) : (
