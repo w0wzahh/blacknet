@@ -673,7 +673,7 @@ func (s *Server) hSchedulePreview(w http.ResponseWriter, r *http.Request) {
 			at = t
 		}
 	}
-	var transitions []schedules.Transition
+	transitions := []schedules.Transition{}
 	cur := at
 	for i := 0; i < 3; i++ {
 		tr, ok := sc.NextTransition(cur)
@@ -995,7 +995,11 @@ func (s *Server) hBlocklistGroups(w http.ResponseWriter, r *http.Request) {
 		jerr(w, 500, err.Error())
 		return
 	}
-	j(w, 200, map[string]any{"group_ids": lgm[id], "note": "empty means the list applies to all groups"})
+	gids := lgm[id]
+	if gids == nil {
+		gids = []int64{}
+	}
+	j(w, 200, map[string]any{"group_ids": gids, "note": "empty means the list applies to all groups"})
 }
 
 func (s *Server) hBlocklistSetGroups(w http.ResponseWriter, r *http.Request) {
@@ -1171,6 +1175,12 @@ func (s *Server) hStatsDomain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	blocks, allows := s.d.Engine.DomainSources(d)
+	if blocks == nil {
+		blocks = map[int64]string{}
+	}
+	if allows == nil {
+		allows = map[int64]string{}
+	}
 	j(w, 200, map[string]any{
 		"stats":          st,
 		"engine_lists":   blocks,

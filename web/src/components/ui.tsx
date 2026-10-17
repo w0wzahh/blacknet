@@ -1,4 +1,23 @@
-import { ReactNode } from 'react'
+import { Component, ReactNode } from 'react'
+
+// ErrorBoundary keeps a single page's render crash from taking down the
+// whole dashboard — shows the error and a retry instead of a blank screen.
+export class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null }
+  static getDerivedStateFromError(error: Error) { return { error } }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="card mx-auto mt-10 max-w-lg p-5 text-center">
+          <div className="text-sm font-medium text-red-300">This page failed to render</div>
+          <div className="mt-1 font-mono text-xs text-zinc-500">{this.state.error.message}</div>
+          <button className="btn-ghost mt-3" onClick={() => this.setState({ error: null })}>Retry</button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 export function StatCard({ label, value, sub, accent }: {
   label: string; value: ReactNode; sub?: ReactNode; accent?: boolean

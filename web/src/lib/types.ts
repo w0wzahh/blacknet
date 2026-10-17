@@ -177,9 +177,9 @@ export interface Schedule {
   end_min: number
   date_from: string
   date_to: string
-  target_kind: 'protection' | 'group' | string
+  target_kind: 'all' | 'group' | 'client' | string
   target_id: number
-  effect: 'allow_all' | 'block_all' | 'extra_lists' | string
+  effect: 'protection_off' | 'protection_on' | 'extra_lists' | string
   list_ids?: number[]
   created_at: string
   updated_at: string

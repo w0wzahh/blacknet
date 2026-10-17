@@ -7,7 +7,7 @@ import { Badge, EmptyState, ErrorBox, Loading } from '../components/ui'
 interface EventsResp {
   items: DiscoveryEvent[]
   enabled: boolean
-  host_interfaces: { name: string; addrs: string[]; ipv4: string[]; is_up: boolean; is_loopback: boolean }[]
+  host_interfaces: string[]
 }
 
 export function Devices() {
@@ -100,12 +100,11 @@ export function Devices() {
 
       {(data.host_interfaces ?? []).length > 0 && (
         <>
-          <h2 className="pt-2 text-sm font-semibold text-zinc-200">Host interfaces</h2>
+          <h2 className="pt-2 text-sm font-semibold text-zinc-200">Host LAN addresses</h2>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {data.host_interfaces.filter(i => i.is_up && !i.is_loopback).map(i => (
-              <div key={i.name} className="card px-3 py-2">
-                <div className="text-xs font-medium text-zinc-300">{i.name}</div>
-                <div className="mt-0.5 font-mono text-xs text-zinc-500">{(i.ipv4 ?? []).join(', ') || '—'}</div>
+            {data.host_interfaces.map(ip => (
+              <div key={ip} className="card px-3 py-2">
+                <div className="font-mono text-xs text-zinc-300">{ip}</div>
               </div>
             ))}
           </div>

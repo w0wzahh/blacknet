@@ -30,6 +30,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     const msg = typeof data === 'object' && data?.error ? data.error : res.statusText
     throw new ApiError(res.status, msg, typeof data === 'object' ? data?.fields : undefined)
   }
+  if (!ct.includes('json')) {
+    throw new ApiError(res.status, 'unexpected non-JSON response')
+  }
   return data as T
 }
 
@@ -60,4 +63,10 @@ export function fmtNum(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
   if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k'
   return String(n)
+}
+
+// arr normalizes an API value to a real array — guards against null and
+// non-array JSON (e.g. a wrapped {items:…} shape) so .map never throws.
+export function arr<T>(v: unknown): T[] {
+  return Array.isArray(v) ? v as T[] : []
 }

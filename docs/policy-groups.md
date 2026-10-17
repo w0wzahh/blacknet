@@ -56,9 +56,9 @@ Schedules change policy by time of day. Three effects exist:
   only while the window is active (e.g. social-media lists during homework
   hours).
 
-Targets are a group or a single client. Weekdays, start/end times (windows
-may cross midnight), an IANA timezone, and optional from/to dates are
-configurable. `GET /api/v1/schedules/{id}/preview` shows the next activation
+Targets are all clients (`all`), a group, or a single client. Weekdays,
+start/end times (windows may cross midnight), an IANA timezone, and optional
+from/to dates are configurable. `GET /api/v1/schedules/{id}/preview` shows the next activation
 windows.
 
 ## Verifying assignments

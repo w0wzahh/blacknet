@@ -122,6 +122,7 @@ type DomainStats struct {
 func (db *DB) StatsDomain(ctx context.Context, domain string) (*DomainStats, error) {
 	var s DomainStats
 	s.Domain = domain
+	s.TopClients = []TopItem{}
 	s.RCodes = map[int]int64{}
 	s.Reasons = map[string]int64{}
 	var first, last int64

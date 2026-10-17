@@ -1363,6 +1363,12 @@ func (s *Server) spaHandler() http.Handler {
 	}
 	fs := http.FileServer(http.Dir(root))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// API paths must never receive the SPA HTML: a missed route would be
+		// returned as a 200 text/html body and silently confuse api clients.
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			jerr(w, 404, "unknown api endpoint")
+			return
+		}
 		// SPA fallback: serve index.html for non-file GETs.
 		p := strings.TrimPrefix(r.URL.Path, "/")
 		if p != "" && !strings.Contains(p, "..") && fileExists(root+"/"+p) {

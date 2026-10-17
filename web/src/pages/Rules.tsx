@@ -265,11 +265,11 @@ function InspectModal({ clients, groups, onClose }: { clients: Client[]; groups:
         {res && (
           <div className="space-y-3">
             <ExplanationView ex={res.explanation} />
-            {res.matched_rules.length > 0 && (
+            {(res.matched_rules ?? []).length > 0 && (
               <div>
                 <div className="mb-1 text-xs font-medium text-zinc-400">All matching rules (precedence order)</div>
                 <div className="space-y-1">
-                  {res.matched_rules.map(r => (
+                  {(res.matched_rules ?? []).map(r => (
                     <div key={r.id} className="flex items-center gap-2 rounded border border-zinc-800 px-2 py-1 text-xs">
                       {r.action === 'block' ? <Badge tone="bad">block</Badge> : <Badge tone="ok">allow</Badge>}
                       <span className="font-mono">{r.scope === 'tree' ? '*.' : ''}{r.domain}</span>
@@ -284,14 +284,14 @@ function InspectModal({ clients, groups, onClose }: { clients: Client[]; groups:
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
                 <div className="mb-1 font-medium text-zinc-400">Found in blocklists</div>
-                {res.in_blocklists.length === 0 ? <div className="text-zinc-600">none</div> :
+                {(res.in_blocklists ?? []).length === 0 ? <div className="text-zinc-600">none</div> :
                   res.in_blocklists.map((b, i) => (
                     <div key={i} className="font-mono text-zinc-300">{b.name || `#${b.list_id}`} <span className="text-zinc-600">via {b.matched_domain}</span></div>
                   ))}
               </div>
               <div>
                 <div className="mb-1 font-medium text-zinc-400">Exceptions</div>
-                {res.exceptions.length === 0 ? <div className="text-zinc-600">none</div> :
+                {(res.exceptions ?? []).length === 0 ? <div className="text-zinc-600">none</div> :
                   res.exceptions.map((b, i) => (
                     <div key={i} className="font-mono text-zinc-300">{b.name || `#${b.list_id}`} <span className="text-zinc-600">via {b.matched_domain}</span></div>
                   ))}
@@ -331,7 +331,7 @@ function BatchModal({ clients, groups, onClose }: { clients: Client[]; groups: P
             <table className="w-full">
               <thead className="sticky top-0 bg-zinc-900"><tr><th className="th">Domain</th><th className="th">Decision</th><th className="th">Reason</th></tr></thead>
               <tbody>
-                {res.results.map((r, i) => (
+                {(res.results ?? []).map((r, i) => (
                   <tr key={i} className="hover:bg-zinc-800/30">
                     <td className="td font-mono text-xs">{r.domain}</td>
                     <td className="td">{r.blocked ? <Badge tone="bad">blocked</Badge> : <Badge tone="muted">allowed</Badge>}</td>

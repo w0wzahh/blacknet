@@ -445,7 +445,7 @@ func (e *Engine) MatchAll(domain string, sub Subject) []Rule {
 	domain = Normalize(domain)
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	var out []Rule
+	out := []Rule{}
 	for _, r := range e.exact[domain] {
 		out = append(out, r)
 	}

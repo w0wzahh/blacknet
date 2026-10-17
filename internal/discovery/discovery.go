@@ -209,7 +209,7 @@ func MACFromNeighbors(ns []Neighbor, ip netip.Addr) string {
 // Interfaces returns LAN interface addresses of this host — used to detect
 // whether discovery is even possible (we must share an L2 with clients).
 func Interfaces() []string {
-	var out []string
+	out := []string{}
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return out

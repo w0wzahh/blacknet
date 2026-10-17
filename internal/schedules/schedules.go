@@ -26,6 +26,7 @@ const (
 
 // Target kinds.
 const (
+	TargetAll    = "all"
 	TargetGroup  = "group"
 	TargetClient = "client"
 )
@@ -79,11 +80,11 @@ func (s *Schedule) Validate() map[string]string {
 		errs["date_to"] = "end date is before start date"
 	}
 	switch s.TargetKind {
-	case TargetGroup, TargetClient:
+	case TargetAll, TargetGroup, TargetClient:
 	default:
-		errs["target_kind"] = "target must be group or client"
+		errs["target_kind"] = "target must be all, group or client"
 	}
-	if s.TargetID <= 0 {
+	if s.TargetKind != TargetAll && s.TargetID <= 0 {
 		errs["target_id"] = "a target is required"
 	}
 	switch s.Effect {
@@ -141,6 +142,8 @@ func (s *Schedule) Active(t time.Time) bool {
 // Applies reports whether this schedule targets the given subject.
 func (s *Schedule) Applies(clientID, groupID int64) bool {
 	switch s.TargetKind {
+	case TargetAll:
+		return true
 	case TargetClient:
 		return s.TargetID == clientID
 	case TargetGroup:

@@ -409,7 +409,7 @@ paths:
               properties:
                 name: { type: string }
                 effect: { type: string, enum: [protection_off, protection_on, extra_lists] }
-                target_kind: { type: string, enum: [group, client] }
+                target_kind: { type: string, enum: [all, group, client] }
                 target_id: { type: integer }
                 days_mask: { type: integer, description: 'bit i = weekday i, Sunday=0' }
                 start_min: { type: integer, description: 'minutes after midnight 0-1439' }

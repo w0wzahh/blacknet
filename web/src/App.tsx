@@ -21,7 +21,7 @@ import { Health } from './pages/Health'
 import { Audit } from './pages/Audit'
 import { Login } from './pages/Login'
 import { SetupWizard } from './pages/SetupWizard'
-import { Loading } from './components/ui'
+import { ErrorBoundary, Loading } from './components/ui'
 
 interface AuthState { password_set: boolean; authenticated: boolean; setup_completed: boolean }
 
@@ -54,6 +54,7 @@ function Shell() {
       <Sidebar version={version} />
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-7xl px-6 py-6">
+          <ErrorBoundary>
           <Routes>
             <Route path="/" element={<Overview />} />
             <Route path="/queries" element={<QueryLog />} />
@@ -74,6 +75,7 @@ function Shell() {
             <Route path="/about" element={<About />} />
             <Route path="*" element={<Overview />} />
           </Routes>
+          </ErrorBoundary>
         </div>
       </main>
     </div>

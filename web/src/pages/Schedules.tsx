@@ -43,13 +43,14 @@ export function Schedules() {
   if (!items) return err ? <ErrorBox error={err} /> : <Loading />
 
   const targetName = (s: Schedule) => {
-    if (s.target_kind === 'protection') return 'all protection'
+    if (s.target_kind === 'all') return 'all clients'
     if (s.target_kind === 'group') return 'group: ' + (groups.find(g => g.id === s.target_id)?.name || `#${s.target_id}`)
     if (s.target_kind === 'client') return 'client: ' + (clients.find(c => c.id === s.target_id)?.alias || `#${s.target_id}`)
     return `${s.target_kind} #${s.target_id}`
   }
   const effectLabel = (s: Schedule) => ({
-    allow_all: 'pause protection', block_all: 'block everything',
+    protection_off: 'pause protection (allow all)',
+    protection_on: 'force filtering on',
     extra_lists: `apply ${(s.list_ids ?? []).length} extra lists`,
   } as Record<string, string>)[s.effect] || s.effect
 
@@ -99,9 +100,9 @@ export function Schedules() {
           <div className="space-y-2 text-sm">
             <div>Right now: {preview.active ? <Badge tone="warn">active</Badge> : <Badge tone="muted">inactive</Badge>}</div>
             <div className="text-xs text-zinc-500">Next transitions:</div>
-            {preview.transitions.length === 0 ? (
+            {(preview.transitions ?? []).length === 0 ? (
               <div className="text-xs text-zinc-600">None upcoming (check the day mask and date range).</div>
-            ) : preview.transitions.map((t, i) => (
+            ) : (preview.transitions ?? []).map((t, i) => (
               <div key={i} className="flex items-center gap-2 text-xs">
                 <span className="font-mono text-zinc-400">{fmtTime(t.at)}</span>
                 {t.to_active ? <Badge tone="warn">becomes active</Badge> : <Badge tone="muted">becomes inactive</Badge>}
@@ -123,9 +124,9 @@ function ScheduleModal({ sc, groups, clients, lists, onClose, onSaved }: {
   const [days, setDays] = useState(sc?.days_mask ?? 0b1111111)
   const [start, setStart] = useState(sc ? minToHMS(sc.start_min) : '21:00')
   const [end, setEnd] = useState(sc ? minToHMS(sc.end_min) : '07:00')
-  const [targetKind, setTargetKind] = useState(sc?.target_kind || 'protection')
+  const [targetKind, setTargetKind] = useState(sc?.target_kind || 'all')
   const [targetId, setTargetId] = useState(sc?.target_id || 0)
-  const [effect, setEffect] = useState(sc?.effect || 'block_all')
+  const [effect, setEffect] = useState(sc?.effect || 'protection_off')
   const [listIds, setListIds] = useState<number[]>(sc?.list_ids ?? [])
   const [err, setErr] = useState('')
 
@@ -165,12 +166,12 @@ function ScheduleModal({ sc, groups, clients, lists, onClose, onSaved }: {
         <div className="grid grid-cols-2 gap-3">
           <Field label="Applies to">
             <select className="input w-full" value={targetKind} onChange={e => { setTargetKind(e.target.value); setTargetId(0) }}>
-              <option value="protection">All clients (protection)</option>
+              <option value="all">All clients</option>
               <option value="group">A policy group</option>
               <option value="client">A single client</option>
             </select>
           </Field>
-          {targetKind !== 'protection' && (
+          {targetKind !== 'all' && (
             <Field label={targetKind === 'group' ? 'Group' : 'Client'}>
               <select className="input w-full" value={targetId} onChange={e => setTargetId(Number(e.target.value))}>
                 <option value={0}>Choose…</option>
@@ -181,8 +182,8 @@ function ScheduleModal({ sc, groups, clients, lists, onClose, onSaved }: {
           )}
           <Field label="Effect while active">
             <select className="input w-full" value={effect} onChange={e => setEffect(e.target.value)}>
-              <option value="block_all">Block every domain</option>
-              <option value="allow_all">Pause protection (allow all)</option>
+              <option value="protection_off">Pause protection (allow all)</option>
+              <option value="protection_on">Force filtering on</option>
               <option value="extra_lists">Apply extra blocklists</option>
             </select>
           </Field>
@@ -203,7 +204,7 @@ function ScheduleModal({ sc, groups, clients, lists, onClose, onSaved }: {
         {err && <ErrorBox error={err} />}
         <div className="flex justify-end gap-2 pt-1">
           <button className="btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="btn-primary" disabled={!name || days === 0 || (targetKind !== 'protection' && !targetId)} onClick={save}>Save</button>
+          <button className="btn-primary" disabled={!name || days === 0 || (targetKind !== 'all' && !targetId)} onClick={save}>Save</button>
         </div>
       </div>
     </Modal>

@@ -279,7 +279,7 @@ export function ExplanationView({ ex }: { ex: Explanation }) {
         <div className="mt-2 text-xs text-zinc-500">active schedules: {ex.active_schedules!.join(', ')}</div>
       )}
       <ol className="mt-2 space-y-1 border-l-2 border-zinc-800 pl-3">
-        {ex.steps.map((s, i) => (
+        {(ex.steps ?? []).map((s, i) => (
           <li key={i} className="text-xs">
             <span className={s.matched ? 'text-amber-300' : 'text-zinc-600'}>{s.matched ? '●' : '○'}</span>{' '}
             <span className="font-medium text-zinc-400">{s.stage}</span>
