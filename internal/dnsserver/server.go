@@ -382,11 +382,17 @@ func (s *Server) trusted(ip netip.Addr) bool {
 }
 
 func remoteIP(a net.Addr) (netip.Addr, bool) {
+	// Unmap IPv4-mapped IPv6 addresses: a dual-stack [::] listener reports
+	// LAN clients as ::ffff:a.b.c.d, which never matches an IPv4 trusted CIDR.
+	unmap := func(ip net.IP) (netip.Addr, bool) {
+		addr, ok := netip.AddrFromSlice(ip)
+		return addr.Unmap(), ok
+	}
 	switch v := a.(type) {
 	case *net.UDPAddr:
-		return netip.AddrFromSlice(v.IP)
+		return unmap(v.IP)
 	case *net.TCPAddr:
-		return netip.AddrFromSlice(v.IP)
+		return unmap(v.IP)
 	}
 	host, _, err := net.SplitHostPort(a.String())
 	if err != nil {
