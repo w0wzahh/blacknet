@@ -35,8 +35,8 @@ export function About() {
           no telemetry and no external update check unless you explicitly enable one.
         </p>
         <p>
-          Inspiration: the operational model of Pi-hole and AdGuard Home, with an original codebase
-          and interface.
+          Made by w0wzahh — see <a className="text-violet-400 hover:underline" href="/credits">Credits</a> for
+          links and acknowledgements.
         </p>
       </div>
     </div>

@@ -34,7 +34,7 @@ import (
 )
 
 // Version is set by main at build time.
-var Version = "1.0.0-dev"
+var Version = "2.0.0-dev"
 
 // App is the composed application.
 type App struct {

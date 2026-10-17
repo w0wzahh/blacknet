@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Blacknet API
-  version: 1.0.0
+  version: 2.0.0
   description: |
     REST API for the Blacknet DNS filter. All endpoints are under /api/v1.
     Authentication: session cookie (from /auth/login) or "Authorization: Bearer

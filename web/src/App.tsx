@@ -19,6 +19,7 @@ import { LocalDNS } from './pages/LocalDNS'
 import { Enforcement } from './pages/Enforcement'
 import { Health } from './pages/Health'
 import { Audit } from './pages/Audit'
+import { Credits } from './pages/Credits'
 import { Login } from './pages/Login'
 import { SetupWizard } from './pages/SetupWizard'
 import { ErrorBoundary, Loading } from './components/ui'
@@ -77,6 +78,7 @@ function Shell() {
             <Route path="/audit" element={<Audit />} />
             <Route path="/settings" element={<SettingsPage onChanged={() => navigate(0)} />} />
             <Route path="/about" element={<About />} />
+            <Route path="/credits" element={<Credits />} />
             <Route path="*" element={<Overview />} />
           </Routes>
           </ErrorBoundary>

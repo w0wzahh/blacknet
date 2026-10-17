@@ -25,7 +25,7 @@ import (
 	"github.com/w0wzahh/blacknet/internal/logging"
 )
 
-var version = "1.0.0"
+var version = "2.0.0"
 
 func main() {
 	if len(os.Args) < 2 {

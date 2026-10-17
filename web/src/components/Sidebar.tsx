@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, ScrollText, MonitorSmartphone, ListFilter, ShieldCheck,
   ArrowUpCircle, Network, BarChart3, Settings, Info, Shield,
-  Users, CalendarClock, Radar, Globe, Router, HeartPulse, FileClock,
+  Users, CalendarClock, Radar, Globe, Router, HeartPulse, FileClock, Heart,
 } from 'lucide-react'
 
 const sections = [
@@ -41,6 +41,7 @@ const sections = [
       { to: '/health', label: 'Health', icon: HeartPulse },
       { to: '/settings', label: 'Settings', icon: Settings },
       { to: '/about', label: 'About', icon: Info },
+      { to: '/credits', label: 'Credits', icon: Heart },
     ],
   },
 ]
